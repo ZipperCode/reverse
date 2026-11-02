@@ -173,6 +173,41 @@ export interface RecordAnalysisRunResult {
 	idempotent_retry: boolean;
 }
 
+export interface ResolveAnalysisOutputPathOptions {
+	projectDir: string;
+	outputPath: string;
+	runDir?: string;
+	paths?: AnalysisRunPaths;
+}
+
+export interface SafeAnalysisOutputPath {
+	resolvedPath: string;
+	realPath: string;
+	relativePath: string;
+	runRelativePath: string;
+	subdir: AnalysisRunSubdir;
+}
+
+export interface LoadAnalysisExecutionOptions {
+	projectDir: string;
+	workspaceDir?: string;
+	workflowId: string;
+	stepId: string;
+	runId: string;
+	inputPaths?: string[];
+	outputPaths?: string[];
+	workflowStore?: ReverseWorkflowStore;
+}
+
+export interface LoadAnalysisExecutionResult {
+	workspace_dir: string;
+	relative_workspace_dir: string;
+	run: AnalysisRunRecord;
+	paths: AnalysisRunPaths;
+	inputRefs: AnalysisFileRef[];
+	outputPaths: SafeAnalysisOutputPath[];
+}
+
 export function validateAnalysisIdentifier(fieldName: string, rawValue: string | undefined): string {
 	const trimmed = rawValue?.trim() ?? "";
 	if (!ANALYSIS_ID_PATTERN.test(trimmed)) {
@@ -242,6 +277,15 @@ async function resolveSafeFileRef(
 		});
 	} catch (err) {
 		throw new ToolError(`Invalid ${label} path '${rawPath}': ${err instanceof Error ? err.message : String(err)}`);
+	}
+
+	const realProjectDir = await fs.realpath(path.resolve(projectDir));
+	const expectedRealPath = path.join(realProjectDir, ...safePath.relativePath.split("/").filter(Boolean));
+	const entryStat = await fs.lstat(safePath.resolvedPath);
+	if (entryStat.isSymbolicLink() || safePath.realPath !== expectedRealPath) {
+		throw new ToolError(
+			`Invalid ${label} path '${rawPath}': Symlink escape violation: symbolic link is not allowed.`,
+		);
 	}
 
 	const hashed = await hashFile(safePath.resolvedPath);
@@ -762,6 +806,354 @@ export async function recordAnalysisRun(options: RecordAnalysisRunOptions): Prom
 		run: finalRun,
 		artifact_refs: artifactRefs,
 		idempotent_retry: idempotentRetry,
+	};
+}
+
+/**
+ * 校验实验产物输出路径必须位于当前 run 的受管子目录（scripts/dumps/reports/tmp）内，
+ * 禁止覆盖 run.json/run.lock 元数据、禁止目录充当输出文件、禁止任何符号链接或路径越界。
+ */
+export async function resolveAnalysisOutputPath(
+	options: ResolveAnalysisOutputPathOptions,
+): Promise<SafeAnalysisOutputPath> {
+	const resolvedProjectDir = path.resolve(options.projectDir);
+	const rawRunDir = options.runDir ?? options.paths?.run_dir;
+	if (!rawRunDir || rawRunDir.trim().length === 0) {
+		throw new ToolError("Run directory ('runDir' or 'paths.run_dir') is required to resolve analysis output path.");
+	}
+
+	let safeRunDir: SafeResolvedPath;
+	try {
+		safeRunDir = await assertRealPathWithin(resolvedProjectDir, rawRunDir, {
+			baseDir: resolvedProjectDir,
+		});
+	} catch (err) {
+		throw new ToolError(`Invalid run directory '${rawRunDir}': ${err instanceof Error ? err.message : String(err)}`);
+	}
+
+	try {
+		const runDirStat = await fs.lstat(safeRunDir.resolvedPath);
+		if (runDirStat.isSymbolicLink()) {
+			throw new ToolError(
+				`Invalid output path '${options.outputPath}': Symlink escape violation at run directory '${rawRunDir}'.`,
+			);
+		}
+		if (!runDirStat.isDirectory()) {
+			throw new ToolError(`Analysis run directory '${rawRunDir}' is not a directory.`);
+		}
+	} catch (err) {
+		if (err instanceof ToolError) throw err;
+		throw new ToolError(
+			`Analysis run directory '${rawRunDir}' does not exist: ${err instanceof Error ? err.message : String(err)}`,
+		);
+	}
+
+	let safeOut: SafeResolvedPath;
+	try {
+		safeOut = await assertRealPathWithin(safeRunDir.resolvedPath, options.outputPath, {
+			baseDir: resolvedProjectDir,
+		});
+	} catch (err) {
+		throw new ToolError(
+			`Invalid output path '${options.outputPath}': ${err instanceof Error ? err.message : String(err)}`,
+		);
+	}
+
+	const runJsonPath = path.join(safeRunDir.resolvedPath, "run.json");
+	const lockPath = path.join(safeRunDir.resolvedPath, "run.lock");
+	const realRunJsonPath = path.join(safeRunDir.realPath, "run.json");
+	const realLockPath = path.join(safeRunDir.realPath, "run.lock");
+
+	if (
+		safeOut.resolvedPath === runJsonPath ||
+		safeOut.resolvedPath === lockPath ||
+		safeOut.realPath === realRunJsonPath ||
+		safeOut.realPath === realLockPath
+	) {
+		throw new ToolError(`Cannot overwrite internal run metadata file '${options.outputPath}'.`);
+	}
+
+	if (safeOut.resolvedPath === safeRunDir.resolvedPath || safeOut.realPath === safeRunDir.realPath) {
+		throw new ToolError(`Invalid output path '${options.outputPath}': path is a directory, not a regular file.`);
+	}
+
+	const relToRun = path.relative(safeRunDir.resolvedPath, safeOut.resolvedPath);
+	const segments = relToRun.split(path.sep).filter(Boolean);
+	if (segments.length === 0) {
+		throw new ToolError(`Invalid output path '${options.outputPath}': path is a directory, not a regular file.`);
+	}
+
+	const firstSegment = segments[0];
+	if (!(ANALYSIS_RUN_SUBDIRS as readonly string[]).includes(firstSegment)) {
+		throw new ToolError(
+			`Invalid output path '${options.outputPath}': outputs must be confined within run subdirectories (${ANALYSIS_RUN_SUBDIRS.join(", ")}).`,
+		);
+	}
+	if (segments.length === 1) {
+		throw new ToolError(
+			`Invalid output path '${options.outputPath}': path points to run subdirectory '${firstSegment}', not a regular file.`,
+		);
+	}
+
+	// 逐级检查 run 目录内不存在符号链接，且已存在节点类型合法（父节点为目录、末节点为普通文件）
+	let curPath = safeRunDir.resolvedPath;
+	for (let i = 0; i < segments.length; i++) {
+		curPath = path.join(curPath, segments[i]);
+		try {
+			const st = await fs.lstat(curPath);
+			if (st.isSymbolicLink()) {
+				throw new ToolError(
+					`Invalid output path '${options.outputPath}': Symlink escape violation: symbolic link '${curPath}' is not allowed inside analysis run directory.`,
+				);
+			}
+			if (i < segments.length - 1) {
+				if (!st.isDirectory()) {
+					throw new ToolError(
+						`Invalid output path '${options.outputPath}': parent path '${curPath}' exists and is not a directory.`,
+					);
+				}
+			} else if (!st.isFile()) {
+				throw new ToolError(
+					`Invalid output path '${options.outputPath}': path already exists and is not a regular file.`,
+				);
+			}
+		} catch (err) {
+			if (err instanceof ToolError) throw err;
+			if (isEnoent(err)) {
+				break;
+			}
+			throw err;
+		}
+	}
+
+	const expectedRealOut = path.join(safeRunDir.realPath, ...segments);
+	if (safeOut.realPath !== expectedRealOut) {
+		throw new ToolError(
+			`Invalid output path '${options.outputPath}': Symlink escape violation: resolved real path '${safeOut.realPath}' does not match '${expectedRealOut}'.`,
+		);
+	}
+
+	return {
+		resolvedPath: safeOut.resolvedPath,
+		realPath: safeOut.realPath,
+		relativePath: safeOut.relativePath,
+		runRelativePath: segments.join("/"),
+		subdir: firstSegment as AnalysisRunSubdir,
+	};
+}
+
+/**
+ * 在领域工具实际执行或写入产物前，以只读方式校验活跃实验 run 的工作流/步骤归属、running 状态、
+ * 目标样本哈希与全部已登记输入/脚本完整性。允许只读消费同次 run 内的中间产物（不追加或改写 run.json），
+ * 拒绝未在 begin 声明的外部输入并提示重新发起 begin。
+ */
+export async function loadAnalysisExecution(
+	options: LoadAnalysisExecutionOptions,
+): Promise<LoadAnalysisExecutionResult> {
+	const resolvedProjectDir = path.resolve(options.projectDir);
+	const workflowId = validateAnalysisIdentifier("workflow_id", options.workflowId);
+	const stepId = requireNonEmptyText("step_id", options.stepId);
+	const runId = validateAnalysisIdentifier("run_id", options.runId);
+
+	const workspace = await resolveSafeWorkspaceDir(resolvedProjectDir, options.workspaceDir);
+
+	const workflowStore = options.workflowStore ?? new ReverseWorkflowStore({ repositoryRoot: resolvedProjectDir });
+	const workflow = await workflowStore.get(workflowId);
+	if (!workflow) {
+		throw new ToolError(`Workflow '${workflowId}' not found.`);
+	}
+
+	const step = workflow.steps.find(s => s.id === stepId);
+	if (!step) {
+		throw new ToolError(`Step '${stepId}' not found in workflow '${workflowId}'.`);
+	}
+
+	if (!workflow.target_sha256 || workflow.target_sha256.trim().length === 0) {
+		throw new ToolError(
+			`Workflow '${workflowId}' does not have an established target_sha256; cannot execute bound analysis run.`,
+		);
+	}
+
+	const candidateRunDir = path.join(workspace.resolvedPath, "analysis", workflowId, "runs", runId);
+	let safeRunDir: SafeResolvedPath;
+	try {
+		safeRunDir = await assertRealPathWithin(workspace.resolvedPath, candidateRunDir, {
+			baseDir: resolvedProjectDir,
+		});
+	} catch (err) {
+		throw new ToolError(
+			`Unsafe analysis run directory for '${runId}': ${err instanceof Error ? err.message : String(err)}`,
+		);
+	}
+
+	try {
+		const runDirStat = await fs.lstat(safeRunDir.resolvedPath);
+		if (runDirStat.isSymbolicLink()) {
+			throw new ToolError(`Unsafe analysis run directory for '${runId}': Symlink escape violation.`);
+		}
+		if (!runDirStat.isDirectory()) {
+			throw new ToolError(`Analysis run '${runId}' not found for workflow '${workflowId}'. Run 'begin' first.`);
+		}
+	} catch (err) {
+		if (err instanceof ToolError) throw err;
+		if (isEnoent(err)) {
+			throw new ToolError(`Analysis run '${runId}' not found for workflow '${workflowId}'. Run 'begin' first.`);
+		}
+		throw err;
+	}
+
+	const paths = buildRunPaths(resolvedProjectDir, safeRunDir.resolvedPath);
+	try {
+		const runJsonStat = await fs.lstat(paths.run_json);
+		if (runJsonStat.isSymbolicLink()) {
+			throw new ToolError(`Unsafe run.json for '${runId}': Symlink escape violation.`);
+		}
+		if (!runJsonStat.isFile()) {
+			throw new ToolError(`Analysis run '${runId}' not found for workflow '${workflowId}'. Run 'begin' first.`);
+		}
+		await assertRealPathWithin(safeRunDir.resolvedPath, paths.run_json, {
+			baseDir: resolvedProjectDir,
+			requireRegularFile: true,
+		});
+	} catch (err) {
+		if (err instanceof ToolError) throw err;
+		throw new ToolError(`Analysis run '${runId}' not found for workflow '${workflowId}'. Run 'begin' first.`);
+	}
+
+	let parsedRun: unknown;
+	try {
+		const rawJson = await fs.readFile(paths.run_json, "utf8");
+		parsedRun = JSON.parse(rawJson);
+	} catch (err) {
+		throw new ToolError(`Failed to read run record '${runId}': ${err instanceof Error ? err.message : String(err)}`);
+	}
+
+	if (isRecordObject(parsedRun)) {
+		if (typeof parsedRun.workflow_id === "string" && parsedRun.workflow_id !== workflowId) {
+			throw new ToolError(
+				`Workflow ID mismatch for run '${runId}': expected '${parsedRun.workflow_id}', got '${workflowId}'.`,
+			);
+		}
+		if (typeof parsedRun.id === "string" && parsedRun.id !== runId) {
+			throw new ToolError(`Run ID mismatch in run.json: expected '${runId}', got '${parsedRun.id}'.`);
+		}
+	}
+
+	if (!isValidAnalysisRunRecord(parsedRun, workflowId, runId)) {
+		throw new ToolError(`Corrupt or mismatched run.json for workflow '${workflowId}' run '${runId}'.`);
+	}
+
+	const existingRun: AnalysisRunRecord = parsedRun;
+	if (existingRun.step_id !== stepId) {
+		throw new ToolError(`Step ID mismatch for run '${runId}': expected '${existingRun.step_id}', got '${stepId}'.`);
+	}
+
+	if (existingRun.status !== "running") {
+		throw new ToolError(
+			`Analysis run '${runId}' has status '${existingRun.status}' and is no longer 'running'. Start a new run with 'begin'.`,
+		);
+	}
+
+	if (existingRun.target_sha256.toLowerCase() !== workflow.target_sha256.toLowerCase()) {
+		throw new ToolError(
+			`Target SHA-256 mismatch for run '${runId}': run recorded '${existingRun.target_sha256}', workflow expects '${workflow.target_sha256}'. Start a new run with 'begin'.`,
+		);
+	}
+
+	const targetCandidate = workflow.target_abs_path || workflow.target;
+	const targetRef = await resolveSafeFileRef(resolvedProjectDir, targetCandidate, resolvedProjectDir, "target");
+	if (targetRef.sha256.toLowerCase() !== workflow.target_sha256.toLowerCase()) {
+		throw new ToolError(
+			`Target file '${workflow.target}' changed since run began (expected SHA-256 ${workflow.target_sha256}, got ${targetRef.sha256}). Start a new run with 'begin'.`,
+		);
+	}
+
+	const recordedTargetInput = existingRun.inputs.find(i => i.path === targetRef.path);
+	if (
+		!recordedTargetInput ||
+		recordedTargetInput.sha256.toLowerCase() !== targetRef.sha256.toLowerCase() ||
+		recordedTargetInput.size_bytes !== targetRef.size_bytes
+	) {
+		throw new ToolError(
+			`Target file '${targetRef.path}' is missing or mismatched in recorded inputs for run '${runId}'. Start a new run with 'begin'.`,
+		);
+	}
+
+	// 复核 begin 阶段登记的全部输入与既有脚本均未发生篡改或丢失
+	await verifyRecordedRefsUnchanged(resolvedProjectDir, existingRun.inputs, "input");
+	await verifyRecordedRefsUnchanged(resolvedProjectDir, existingRun.scripts, "script");
+
+	const recordedInputsByPath = new Map<string, AnalysisFileRef>(existingRun.inputs.map(item => [item.path, item]));
+	const inputRefs: AnalysisFileRef[] = [];
+	const seenInputPaths = new Set<string>();
+
+	for (const rawInput of options.inputPaths ?? []) {
+		const inputRef = await resolveSafeFileRef(resolvedProjectDir, rawInput, resolvedProjectDir, "input");
+		const recordedInput = recordedInputsByPath.get(inputRef.path);
+		if (recordedInput) {
+			if (inputRef.sha256 !== recordedInput.sha256 || inputRef.size_bytes !== recordedInput.size_bytes) {
+				throw new ToolError(
+					`Recorded input '${inputRef.path}' changed since run began (expected SHA-256 ${recordedInput.sha256}, got ${inputRef.sha256}). Start a new run with 'begin'.`,
+				);
+			}
+			if (!seenInputPaths.has(inputRef.path)) {
+				seenInputPaths.add(inputRef.path);
+				inputRefs.push({
+					path: inputRef.path,
+					sha256: inputRef.sha256,
+					size_bytes: inputRef.size_bytes,
+				});
+			}
+			continue;
+		}
+
+		// 非 begin 登记输入：仅允许只读消费同次 run 目录内的安全中间产物，外部新输入必须报错并提示重新 begin
+		const relToRun = path.relative(safeRunDir.resolvedPath, inputRef.resolvedPath);
+		const isInsideCurrentRun = relToRun !== "" && !relToRun.startsWith("..") && !path.isAbsolute(relToRun);
+		if (!isInsideCurrentRun) {
+			throw new ToolError(
+				`Input '${rawInput}' ('${inputRef.path}') was not declared in 'inputs' at 'begin' for run '${runId}'. Start a new run with 'begin' including all external inputs.`,
+			);
+		}
+
+		await resolveAnalysisOutputPath({
+			projectDir: resolvedProjectDir,
+			runDir: safeRunDir.resolvedPath,
+			outputPath: rawInput,
+		});
+		const runLocalRef = await resolveSafeFileRef(
+			safeRunDir.resolvedPath,
+			rawInput,
+			resolvedProjectDir,
+			"run-local intermediate input",
+		);
+		if (!seenInputPaths.has(runLocalRef.path)) {
+			seenInputPaths.add(runLocalRef.path);
+			inputRefs.push({
+				path: runLocalRef.path,
+				sha256: runLocalRef.sha256,
+				size_bytes: runLocalRef.size_bytes,
+			});
+		}
+	}
+
+	const validatedOutputs: SafeAnalysisOutputPath[] = [];
+	for (const rawOutput of options.outputPaths ?? []) {
+		const safeOut = await resolveAnalysisOutputPath({
+			projectDir: resolvedProjectDir,
+			runDir: safeRunDir.resolvedPath,
+			outputPath: rawOutput,
+		});
+		validatedOutputs.push(safeOut);
+	}
+
+	return {
+		workspace_dir: workspace.resolvedPath,
+		relative_workspace_dir: workspace.relativePath || ".",
+		run: existingRun,
+		paths,
+		inputRefs,
+		outputPaths: validatedOutputs,
 	};
 }
 

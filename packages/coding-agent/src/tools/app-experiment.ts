@@ -1,7 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
-import { constants } from "node:fs";
 import * as net from "node:net";
 import * as path from "node:path";
 import type { AgentTool, AgentToolResult, ToolTier } from "@reverse/agent";
@@ -9,18 +8,91 @@ import { type } from "@reverse/reversetype";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 import { prompt } from "@reverse/utils";
 import appExperimentDescription from "../prompts/tools/app-experiment.md" with { type: "text" };
+import type { EvidenceAssuranceLevel } from "../evidence/contracts";
+import { resolveMitmproxy } from "../extensibility/protocol-toolchain";
 import {
 	checkToolRequirements,
 	type SkillRequirementWhich,
 	type ToolRequirement,
 } from "../extensibility/skill-requirements";
 import type { ToolSession } from "./index";
-import { resolveReadPath } from "./path-utils";
 import { throwIfAborted } from "./tool-errors";
 import { trackLateCleanup } from "../utils/late-cleanup";
 import { defaultAdbRunner, adbDependency, parseAdbDevices, type AdbRunner, type AdbRunResult } from "./adb-observe";
 import { AndroidPackageInspectTool } from "./android-package-inspect";
 import { FridaTool, parseFridaTrace } from "./frida";
+import {
+	executeNetworkImport,
+	writePrivateRunArtifactFile,
+	type ReplayBodyCompleteness,
+	type ReplayBodyRef,
+	type ReplayBodyRepresentation,
+	type ReplayCaptureFormat,
+	type ReplayCaseRecordedResponse,
+	type ReplayCaseRequest,
+	type ReplayCaseSource,
+	type ReplayCaseSourceFormat,
+	type ReplayCaseV1,
+	type ReplayCredentialSlot,
+	type ReplayHeaderEntry,
+	type ReplayPrerequisiteBlock,
+} from "./network-import";
+import {
+	executeNetworkCompare,
+	type BodyComparisonResult,
+	type ComparisonTruthValue,
+	type HeaderComparisonEntry,
+	type JsonFieldDiffEntry,
+	type JsonValueType,
+	type NetworkCompareReportV1,
+	type ReplayJsonAssertion,
+	type ReplayJsonAssertionResult,
+	type RequestComparisonResult,
+	type ResponseComparisonResult,
+} from "./network-compare";
+import {
+	executeNetworkReplay,
+	type DuplicateHeaderPreservationNote,
+	type NetworkReplayReportV1,
+	type RecordedResponseSummary,
+	type ReplayBaselineExecutionResult,
+	type ReplayVariantDiffAgainstBaseline,
+	type ReplayVariantExecutionResult,
+} from "./network-replay";
+
+export {
+	executeNetworkCompare,
+	executeNetworkReplay,
+	writePrivateRunArtifactFile,
+	type BodyComparisonResult,
+	type ComparisonTruthValue,
+	type DuplicateHeaderPreservationNote,
+	type HeaderComparisonEntry,
+	type JsonFieldDiffEntry,
+	type JsonValueType,
+	type NetworkCompareReportV1,
+	type NetworkReplayReportV1,
+	type RecordedResponseSummary,
+	type ReplayBaselineExecutionResult,
+	type ReplayBodyCompleteness,
+	type ReplayBodyRef,
+	type ReplayBodyRepresentation,
+	type ReplayCaptureFormat,
+	type ReplayCaseRecordedResponse,
+	type ReplayCaseRequest,
+	type ReplayCaseSource,
+	type ReplayCaseSourceFormat,
+	type ReplayCaseV1,
+	type ReplayCredentialSlot,
+	type ReplayHeaderEntry,
+	type ReplayJsonAssertion,
+	type ReplayJsonAssertionResult,
+	type ReplayPrerequisiteBlock,
+	type ReplayVariantDiffAgainstBaseline,
+	type ReplayVariantExecutionResult,
+	type RequestComparisonResult,
+	type ResponseComparisonResult,
+};
 
 // ============================================================================
 // Parameter Schema
@@ -37,6 +109,14 @@ const replayVariantRequestSchema = type({
 	"header_env_map?": type("Record<string, string>"),
 });
 
+const replayJsonAssertionSchema = type({
+	pointer: "string",
+	"target?": "string",
+	"exists?": "boolean",
+	"type?": type.enumerated("null", "boolean", "number", "string", "array", "object"),
+	"eq?": "unknown",
+});
+
 const appExperimentSchema = type({
 	action: type
 		.enumerated(
@@ -46,6 +126,8 @@ const appExperimentSchema = type({
 			"extract_sandbox_data",
 			"webview_debug",
 			"network_replay",
+			"network_import",
+			"network_compare",
 			"mitm_capture",
 			"pinning_diagnose",
 		)
@@ -88,7 +170,28 @@ const appExperimentSchema = type({
 	}).describe("Baseline HTTP request definition"),
 	"variant_requests?": type.array(replayVariantRequestSchema).describe("Request variants for comparison (max 10)"),
 	"auth_header_env?": type("string").describe("Environment variable name holding auth token for baseline request"),
-	"request_file?": type("string").describe("Path to protected request JSON file"),
+	"header_env_map?": type("Record<string, string>").describe(
+		"Mapping of header names to environment variable names holding credential values for baseline request",
+	),
+	"request_file?": type("string").describe("Path to protected request JSON file (mutually exclusive with case_file)"),
+	"case_file?": type("string").describe(
+		"Path to ReplayCase v1 JSON file for network_replay (mutually exclusive with baseline_request and request_file; requires workflow_id, step_id, run_id)",
+	),
+	"left_case?": type("string").describe(
+		"Path to left (baseline/captured) ReplayCase v1 JSON file for offline network_compare",
+	),
+	"right_case?": type("string").describe(
+		"Path to right (candidate/comparison) ReplayCase v1 JSON file for offline network_compare",
+	),
+	"ignore_json_pointers?": type("string[]").describe(
+		"Explicit RFC 6901 JSON Pointers to ignore during normalized JSON comparison (e.g. ['/meta/nonce', '/timestamp'])",
+	),
+	"compare_headers?": type("string[]").describe(
+		"Explicit list of HTTP header names to compare across requests/responses",
+	),
+	"assertions?": type
+		.array(replayJsonAssertionSchema)
+		.describe("Explicit RFC 6901 JSON Pointer assertions (eq, type, exists)"),
 	"capture_response_artifacts?": type("boolean").describe(
 		"Whether to write full captured responses to session artifacts for private forensic review (default false)",
 	),
@@ -96,6 +199,29 @@ const appExperimentSchema = type({
 	"mitm_port?": type("number").describe("Proxy listening port (default 8080)"),
 	"configure_device_proxy?": type("boolean").describe("Explicit authorization to modify global device HTTP proxy"),
 	"pinning_mode?": type.enumerated("detect", "hook_report").describe("Pinning analysis mode (detect or hook_report)"),
+	"capture_path?": type("string").describe("Path to HTTP traffic capture file (.har or .mitm) for network_import"),
+	"capture_format?": type
+		.enumerated("har", "mitm")
+		.describe("Capture file format ('har' or 'mitm') for network_import"),
+	"entry_index?": type("number").describe(
+		"Explicit 0-based entry index to import for network_import (mutually exclusive with flow_id)",
+	),
+	"flow_id?": type("string").describe(
+		"Explicit flow/entry identifier to import for network_import (mutually exclusive with entry_index)",
+	),
+	"workflow_id?": type("string").describe(
+		"Active reverse workflow identifier (required for network_import, network_compare, and case_file network_replay)",
+	),
+	"step_id?": type("string").describe(
+		"Active workflow step identifier (required for network_import, network_compare, and case_file network_replay)",
+	),
+	"run_id?": type("string").describe(
+		"Active analysis run identifier from reverse_workspace(action: 'begin') (required for network_import, network_compare, and case_file network_replay)",
+	),
+	"workspace_path?": type("string").describe("Target workspace directory (defaults to '.reverse' in project root)"),
+	"output_path?": type("string").describe(
+		"Optional project-relative or absolute output path inside the active run directory (e.g. .reverse/analysis/<workflow_id>/runs/<run_id>/reports/diff.json)",
+	),
 	"timeout?": type("number").describe("Execution timeout in seconds (default 30, max 120)"),
 });
 
@@ -158,37 +284,19 @@ export interface AppExperimentDetails {
 	forwardPort?: number;
 	cleanupHandle?: string;
 	ownedForwards?: Array<{ port: number; serial: string; socketName: string; pid?: number }>;
-	// network_replay:
-	baselineResult?: {
-		status: number;
-		statusText: string;
-		headers: Record<string, string>;
-		bodyBytes: number;
-		bodySha256: string;
-		bodyHashScope?: "complete" | "truncated_prefix";
-		bodyTruncated?: boolean;
-		artifactId?: string;
-		artifactPath?: string;
-	};
-	variantResults?: Array<{
-		id: string;
-		name?: string;
-		status: number;
-		statusText: string;
-		headers: Record<string, string>;
-		bodyBytes: number;
-		bodySha256: string;
-		bodyHashScope?: "complete" | "truncated_prefix";
-		bodyTruncated?: boolean;
-		artifactId?: string;
-		artifactPath?: string;
-		diffAgainstBaseline?: {
-			statusMatch: boolean;
-			bodyHashMatch: boolean | null;
-			statusDelta?: string;
-			lengthDelta?: number;
-		};
-	}>;
+	// network_replay & network_compare:
+	recordedResponse?: RecordedResponseSummary;
+	baselineResult?: ReplayBaselineExecutionResult;
+	baselineVsRecorded?: ResponseComparisonResult;
+	variantResults?: ReplayVariantExecutionResult[];
+	assertionResults?: ReplayJsonAssertionResult[];
+	assertionsPassed?: boolean;
+	reportPath?: string;
+	reportRelativePath?: string;
+	reportSha256?: string;
+	compareReport?: NetworkCompareReportV1;
+	requestComparison?: RequestComparisonResult;
+	responseComparison?: ResponseComparisonResult;
 	// mitm_capture:
 	mitmOp?: "start" | "stop" | "status";
 	mitmPort?: number;
@@ -199,6 +307,33 @@ export interface AppExperimentDetails {
 	pinningMode?: "detect" | "hook_report";
 	findings?: Record<string, unknown>;
 	limitations?: string[];
+	// network_import & analysis run association:
+	workflowId?: string;
+	stepId?: string;
+	runId?: string;
+	runDir?: string;
+	casePath?: string;
+	caseRelativePath?: string;
+	caseSha256?: string;
+	requestBodyPath?: string;
+	requestBodyRelativePath?: string;
+	responseBodyPath?: string;
+	responseBodyRelativePath?: string;
+	outputPaths?: string[];
+	relativeOutputPaths?: string[];
+	replayCase?: ReplayCaseV1;
+	argv?: string[];
+	engineVersion?: string;
+	missingTools?: string[];
+	setupCommands?: string[];
+	evidenceCandidates?: Array<{
+		kind: "fact";
+		target: string;
+		locator: string;
+		sourceTool: "app_experiment";
+		content: string;
+		assurance?: EvidenceAssuranceLevel;
+	}>;
 }
 
 export interface AppExperimentToolOptions {
@@ -213,35 +348,6 @@ const COMPONENT_PATTERN = /^[A-Za-z0-9_$./]+$/;
 const PROVIDER_URI_PATTERN = /^content:\/\/[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.~%!$&'()*+,;=:@/-]*)?$/;
 const SAFE_SQL_IDENT_PATTERN = /^[A-Za-z0-9_]+$/;
 const SENSITIVE_KEY_PATTERN = /(authorization|cookie|proxy-authorization|x-api-key|apikey|token|secret|password)/i;
-const SAFE_RESPONSE_HEADERS: Record<string, true> = {
-	"content-type": true,
-	"content-length": true,
-	"content-encoding": true,
-	"cache-control": true,
-	date: true,
-	etag: true,
-	expires: true,
-	"last-modified": true,
-	location: true,
-	server: true,
-	vary: true,
-	"x-content-type-options": true,
-	"x-frame-options": true,
-	pragma: true,
-	age: true,
-	"access-control-allow-origin": true,
-	"strict-transport-security": true,
-	allow: true,
-};
-const ALLOWED_HTTP_METHODS: Record<string, true> = {
-	GET: true,
-	POST: true,
-	PUT: true,
-	DELETE: true,
-	PATCH: true,
-	HEAD: true,
-	OPTIONS: true,
-};
 
 // 解析 adb forward --list 输出：每行通常为 <serial> <local> <remote>
 function parseForwardList(output: string): Array<{ serial: string; local: string; remote: string }> {
@@ -746,7 +852,7 @@ export class AppExperimentTool implements AgentTool<typeof appExperimentSchema, 
 	readonly name = "app_experiment";
 	readonly label = "App Experiment";
 	readonly summary =
-		"Application security experiment and verification laboratory: benign component invocation, read-only provider queries, debug-authorized run-as extraction, WebView forwarding, origin-allowlisted network replay, and TLS pinning diagnosis.";
+		"Application and protocol security experiment laboratory: general HTTP capture import (HAR/.mitm -> ReplayCase v1), offline case diffing (network_compare), and origin-allowlisted network replay (no ADB required), plus Android component invocation, provider queries, run-as extraction, WebView forwarding, MITM capture, and TLS pinning diagnosis.";
 	readonly description: string;
 	readonly parameters = appExperimentSchema;
 	readonly strict = true;
@@ -755,7 +861,7 @@ export class AppExperimentTool implements AgentTool<typeof appExperimentSchema, 
 	/**
 	 * ApprovalGates alignment:
 	 * - preflight: read tier (host/static inventory and fixed readonly device preflight)
-	 * - extract_sandbox_data: write tier (writes persistent session artifact)
+	 * - extract_sandbox_data / network_import / network_compare: write tier (writes persistent session or run artifacts)
 	 * - mitm_capture: exec tier (starts proxy listener and configures device settings)
 	 * - invoke_component / query_provider / webview_debug / network_replay: exec tier
 	 * - pinning_diagnose: read tier for detect, exec tier for hook_report
@@ -766,6 +872,7 @@ export class AppExperimentTool implements AgentTool<typeof appExperimentSchema, 
 			const action = args.action;
 			if (action === "preflight") return "read";
 			if (action === "extract_sandbox_data") return "write";
+			if (action === "network_import" || action === "network_compare") return "write";
 			if (action === "mitm_capture") return "exec";
 			if (action === "invoke_component") return "exec";
 			if (action === "query_provider") return "exec";
@@ -827,6 +934,10 @@ export class AppExperimentTool implements AgentTool<typeof appExperimentSchema, 
 				return this.handleWebviewDebug(params, signal);
 			case "network_replay":
 				return this.handleNetworkReplay(params, signal);
+			case "network_import":
+				return this.handleNetworkImport(params, signal);
+			case "network_compare":
+				return this.handleNetworkCompare(params, signal);
 			case "mitm_capture":
 				return this.handleMitmCapture(params, signal);
 			case "pinning_diagnose":
@@ -1887,58 +1998,6 @@ export class AppExperimentTool implements AgentTool<typeof appExperimentSchema, 
 		throw new ToolError(`Unrecognized webview_op: ${String(webviewOp)}`);
 	}
 
-	// 打开并以受控方式读取安全文件（request_file 与 body_file）：
-	// 使用 O_RDONLY | O_NOFOLLOW | O_NONBLOCK 持有句柄，杜绝软链接劫持与 FIFO 命名管道挂起；
-	// 并在句柄上通过 fstat 校验常规文件、非公共可写权限及属主与尺寸，彻底杜绝 TOCTOU 竞争与超大文件溢出。
-	private async readSafeFile(resolvedPath: string, maxSize: number, label: string): Promise<string> {
-		let fh: fs.FileHandle;
-		try {
-			fh = await fs.open(resolvedPath, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
-		} catch (err) {
-			throw new ToolError(
-				`Failed to open ${label} '${resolvedPath}': ${err instanceof Error ? err.message : String(err)}`,
-			);
-		}
-
-		try {
-			const st = await fh.stat();
-			if (!st.isFile()) {
-				throw new ToolError(`${label} '${resolvedPath}' is not a regular file`);
-			}
-			// POSIX 权限与属主校验：保护机密文件隐私，拒绝 Group 或 Others 具有任何读/写/执行权限（要求 mode 0o600 或 0o400）
-			if (process.platform !== "win32") {
-				if ((st.mode & 0o077) !== 0) {
-					throw new ToolError(
-						`${label} '${resolvedPath}' has insecure permissions (mode 0o${(st.mode & 0o777).toString(8)}). Protected files must be private to owner only (e.g. mode 0o600 or 0o400)`,
-					);
-				}
-				if (typeof process.getuid === "function") {
-					const currentUid = process.getuid();
-					if (st.uid !== 0 && st.uid !== currentUid) {
-						throw new ToolError(
-							`${label} '${resolvedPath}' is not owned by the current user (uid ${st.uid} !== ${currentUid})`,
-						);
-					}
-				}
-			}
-
-			if (st.size > maxSize) {
-				throw new ToolError(`${label} '${resolvedPath}' exceeds maximum allowed size (${maxSize} bytes)`);
-			}
-
-			// 以有界定长 Buffer 读取至多 maxSize + 1 字节
-			const buffer = Buffer.alloc(maxSize + 1);
-			const { bytesRead } = await fh.read(buffer, 0, maxSize + 1, 0);
-			if (bytesRead > maxSize) {
-				throw new ToolError(`${label} '${resolvedPath}' exceeds maximum allowed size (${maxSize} bytes)`);
-			}
-
-			return buffer.toString("utf8", 0, bytesRead);
-		} finally {
-			await fh.close().catch(() => {});
-		}
-	}
-
 	// --------------------------------------------------------------------------
 	// Action: network_replay
 	// --------------------------------------------------------------------------
@@ -1947,567 +2006,321 @@ export class AppExperimentTool implements AgentTool<typeof appExperimentSchema, 
 		params: AppExperimentParams,
 		signal?: AbortSignal,
 	): Promise<AgentToolResult<AppExperimentDetails> & { details: AppExperimentDetails }> {
-		// 1. 严格校验并规范化 allowed_origins
-		if (!params.allowed_origins || !Array.isArray(params.allowed_origins) || params.allowed_origins.length === 0) {
+		if (this.session.getPlanModeState?.()?.enabled) {
 			throw new ToolError(
-				"network_replay strictly requires non-empty 'allowed_origins' (e.g. ['https://api.example.com'])",
+				"Plan mode is read-only. network_replay sends active HTTP requests and writes artifacts; exit plan mode first.",
 			);
 		}
 
-		const allowedOrigins: string[] = [];
-		const allowedOriginsSet = new Set<string>();
-		for (const rawOrigin of params.allowed_origins) {
-			let parsed: URL;
-			try {
-				parsed = new URL(rawOrigin);
-			} catch {
-				throw new ToolError(`Invalid allowed_origin URL: '${rawOrigin}'`);
-			}
-			// 必须限制为 http 或 https 协议，禁止 null、file:、ftp: 等伪源
-			if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-				throw new ToolError(`allowed_origins must use http or https scheme: '${rawOrigin}'`);
-			}
-			const normOrigin = parsed.origin.toLowerCase();
-			if (!allowedOriginsSet.has(normOrigin)) {
-				allowedOriginsSet.add(normOrigin);
-				allowedOrigins.push(normOrigin);
-			}
-		}
+		const outcome = await executeNetworkReplay({
+			projectDir: this.session.cwd,
+			workspacePath: params.workspace_path,
+			workflowId: params.workflow_id,
+			stepId: params.step_id,
+			runId: params.run_id,
+			outputPath: params.output_path,
+			allowedOrigins: params.allowed_origins,
+			caseFile: params.case_file,
+			requestFile: params.request_file,
+			baselineRequest: params.baseline_request,
+			variantRequests: params.variant_requests,
+			authHeaderEnv: params.auth_header_env,
+			headerEnvMap: params.header_env_map,
+			ignoreJsonPointers: params.ignore_json_pointers,
+			compareHeaders: params.compare_headers,
+			assertions: params.assertions,
+			captureResponseArtifacts: params.capture_response_artifacts,
+			maxBytes: params.max_bytes,
+			timeout: params.timeout,
+			fetcher: this.options.fetcher,
+			allocateOutputArtifact: this.session.allocateOutputArtifact?.bind(this.session),
+			signal,
+		});
 
-		// 2. 解析受控请求定义文件（request_file，仅支持单一标准 baseline_request 结构，无平铺别名）
-		interface RawRequestDef {
-			url?: string;
-			method?: string;
-			headers?: Record<string, string>;
-			body?: string;
-			body_file?: string;
-			auth_header_env?: string;
-			header_env_map?: Record<string, string>;
-			id?: string;
-			name?: string;
-		}
+		const baselineRes = outcome.baselineResult;
+		const variantResults = outcome.variantResults;
+		const rec = outcome.recordedResponse;
+		const baseVsRec = outcome.baselineVsRecorded;
 
-		let baseline: RawRequestDef | undefined = params.baseline_request;
-		let fileVariants: RawRequestDef[] | undefined;
-		if (params.request_file) {
-			const resolvedPath = resolveReadPath(params.request_file, this.session.cwd);
-			// 校验 request_file 为不超过 1 MiB 的受控常规文件
-			const fileData = await this.readSafeFile(resolvedPath, 1024 * 1024, "request_file");
-			let parsed: unknown;
-			try {
-				parsed = JSON.parse(fileData);
-			} catch {
-				throw new ToolError(`Failed to parse request_file '${params.request_file}': Invalid JSON syntax`);
-			}
+		const lines = [
+			`// Network API Replay Comparison`,
+			...(outcome.workflowId && outcome.stepId && outcome.runId
+				? [`Workflow / Step / Run: ${outcome.workflowId} / ${outcome.stepId} / ${outcome.runId}`]
+				: []),
+			`Allowed Origins: [${outcome.allowedOrigins.join(", ")}]`,
+			...(rec
+				? [
+						`Recorded Response (historical, non-live): Status ${rec.status} ${rec.statusText}, Length: ${rec.bodyBytes} bytes, Representation: ${rec.bodyRepresentation}, Completeness: ${rec.bodyCompleteness}${rec.bodySha256 ? `, SHA-256: ${rec.bodySha256.slice(0, 16)}...` : ""}`,
+					]
+				: []),
+			`Baseline (live): ${outcome.baselineMethod} ${outcome.sanitizedBaselineUrl} (Status: ${baselineRes.status} ${baselineRes.statusText}, Length: ${baselineRes.bodyBytes} bytes, SHA-256: ${baselineRes.bodySha256.slice(0, 16)}... [${baselineRes.bodyHashScope}])`,
+			...(baseVsRec
+				? [
+						`Baseline vs Recorded: status_equal=${baseVsRec.status_equal} (${baseVsRec.status_delta}), raw_equal=${String(baseVsRec.raw_equal)}, normalized_equal=${String(baseVsRec.normalized_equal)} (unignored_diffs=${baseVsRec.total_unignored_diffs}, ignored_diffs=${baseVsRec.total_ignored_diffs})`,
+					]
+				: []),
+			`Variants Evaluated (${variantResults.length}):`,
+			...variantResults.map(
+				v =>
+					`  • [${v.id}] ${v.name ?? "variant"}: Status ${v.status}, Delta: ${v.diffAgainstBaseline.statusDelta}, Body delta: ${v.diffAgainstBaseline.lengthDelta}b, Hash match: ${v.diffAgainstBaseline.bodyHashMatch === null ? "unknown (truncated)" : v.diffAgainstBaseline.bodyHashMatch}, raw_equal=${String(v.diffAgainstBaseline.raw_equal)}, normalized_equal=${String(v.diffAgainstBaseline.normalized_equal)}`,
+			),
+			...(outcome.assertionResults.length > 0
+				? [
+						`Assertions (${outcome.assertionResults.filter(a => a.passed).length}/${outcome.assertionResults.length} passed):`,
+						...outcome.assertionResults.map(
+							a => `  • [${a.target}] ${a.pointer || "(root)"}: ${a.status}${a.reason ? ` (${a.reason})` : ""}`,
+						),
+					]
+				: []),
+			...(outcome.reportRelativePath
+				? [
+						`Replay Report (mode 0600): ${outcome.reportRelativePath}`,
+						`Record Hint: Pass output_paths: ${JSON.stringify(outcome.relativeOutputPaths)} when calling reverse_workspace(action: "record").`,
+					]
+				: []),
+			`Notice: Status code variations alone do not prove authorization flaws; verification of business response data is required.`,
+		];
 
-			if (
-				typeof parsed !== "object" ||
-				parsed === null ||
-				!("baseline_request" in parsed) ||
-				typeof (parsed as Record<string, unknown>).baseline_request !== "object" ||
-				(parsed as Record<string, unknown>).baseline_request === null
-			) {
-				throw new ToolError(`request_file '${params.request_file}' must contain a 'baseline_request' object`);
-			}
-
-			const obj = parsed as Record<string, unknown>;
-			const fileBase = obj.baseline_request as RawRequestDef;
-			baseline = {
-				url: fileBase.url ?? baseline?.url,
-				method: fileBase.method ?? baseline?.method,
-				headers: fileBase.headers ?? baseline?.headers,
-				body: fileBase.body,
-				body_file: fileBase.body_file ?? baseline?.body_file,
-				auth_header_env: fileBase.auth_header_env ?? baseline?.auth_header_env,
-				header_env_map: fileBase.header_env_map ?? baseline?.header_env_map,
-			};
-
-			if (Array.isArray(obj.variant_requests)) {
-				fileVariants = obj.variant_requests as RawRequestDef[];
-			}
-		}
-
-		if (!baseline || !baseline.url) {
-			throw new ToolError("network_replay requires 'baseline_request.url' or a valid 'request_file'");
-		}
-
-		// 合并 variants 列表，并限制最多 10 个 variant 请求
-		const rawVariants: RawRequestDef[] = params.variant_requests ?? fileVariants ?? [];
-		if (rawVariants.length > 10) {
-			throw new ToolError("Maximum 10 variant requests allowed per replay run");
-		}
-
-		// 4. 统一安全预构建器：在发送任何请求之前，构造并严格校验全量请求的规范化方法、URL、Header与凭据映射
-		interface PreparedReplayRequest {
-			id: string;
-			name?: string;
-			url: string;
-			method: string;
-			finalHeaders: Record<string, string>;
-			body?: string;
-		}
-
-		const preconstructAndValidate = async (
-			label: string,
-			id: string,
-			name: string | undefined,
-			urlStr: string,
-			rawMethod: string | undefined,
-			headers: Record<string, string> | undefined,
-			authEnv: string | undefined,
-			headerEnvMap: Record<string, string> | undefined,
-			rawBody: string | undefined,
-			bodyFile: string | undefined,
-			inheritedBody: string | undefined,
-			inheritedHeaders: Record<string, string>,
-			isFromArgs: boolean,
-		): Promise<PreparedReplayRequest> => {
-			// 规范化并校验 HTTP 方法
-			const method = String(rawMethod ?? "GET").toUpperCase();
-			if (!Object.hasOwn(ALLOWED_HTTP_METHODS, method)) {
-				throw new ToolError(
-					`Invalid HTTP method in ${label}. Allowed methods: GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS`,
-				);
-			}
-
-			// 校验 URL（无原始 urlStr 回显）
-			let parsed: URL;
-			try {
-				parsed = new URL(urlStr);
-			} catch {
-				throw new ToolError(`Invalid request URL in ${label}`);
-			}
-
-			if (parsed.username || parsed.password) {
-				throw new ToolError("Embedded username or password in URL is prohibited to prevent transcript leakage");
-			}
-
-			if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-				throw new ToolError(`Request URL must use http or https in ${label}`);
-			}
-
-			const origin = parsed.origin.toLowerCase();
-			if (!allowedOriginsSet.has(origin)) {
-				throw new ToolError(
-					`URL origin '${origin}' is not in allowed_origins [${allowedOrigins.join(", ")}]. Replay prohibited.`,
-				);
-			}
-
-			for (const [k] of parsed.searchParams) {
-				if (/(token|access_token|key|api[-_]?key|auth|secret|password)/i.test(k)) {
-					throw new ToolError(
-						`Inline sensitive credential query parameter '${k}' is prohibited. Use auth_header_env.`,
-					);
-				}
-			}
-
-			// 预构建最终请求头映射（统一小写键以支持大小写不敏感覆盖与去重）
-			const finalHeaders: Record<string, string> = { ...inheritedHeaders };
-
-			if (headers) {
-				if (typeof headers !== "object" || headers === null || Array.isArray(headers)) {
-					throw new ToolError(`Invalid headers object in ${label}: headers must be a key-value mapping`);
-				}
-				for (const [k, v] of Object.entries(headers)) {
-					if (typeof k !== "string" || typeof v !== "string") {
-						throw new ToolError(`Header names and values in ${label} must be strings`);
-					}
-					if (/[\r\n]/.test(k) || /[\r\n]/.test(v)) {
-						throw new ToolError(`CRLF characters detected in header '${k}' in ${label}: prohibited`);
-					}
-					if (isFromArgs && SENSITIVE_KEY_PATTERN.test(k)) {
-						throw new ToolError(
-							`Inline credential header '${k}' in tool arguments is prohibited to prevent secret exposure. Use auth_header_env, header_env_map, or request_file.`,
-						);
-					}
-					finalHeaders[k.toLowerCase()] = v;
-				}
-			}
-
-			// 预校验并合并环境变量凭据（校验是否存在换行符或非法凭据注入）
-			if (authEnv) {
-				const envVal = process.env[authEnv];
-				if (!envVal || envVal.trim() === "") {
-					throw new ToolError(
-						`Environment variable '${authEnv}' specified in auth_header_env is not set or empty`,
-					);
-				}
-				const token = envVal.trim();
-				if (/[\r\n]/.test(token)) {
-					throw new ToolError(`CRLF characters detected in environment variable '${authEnv}': prohibited`);
-				}
-				finalHeaders["authorization"] =
-					token.startsWith("Bearer ") || token.startsWith("Basic ") ? token : `Bearer ${token}`;
-			}
-
-			if (headerEnvMap) {
-				if (typeof headerEnvMap !== "object" || headerEnvMap === null || Array.isArray(headerEnvMap)) {
-					throw new ToolError(`Invalid header_env_map in ${label}: must be a key-value mapping`);
-				}
-				for (const [headerName, envVarName] of Object.entries(headerEnvMap)) {
-					if (typeof headerName !== "string" || typeof envVarName !== "string") {
-						throw new ToolError(`header_env_map keys and values in ${label} must be strings`);
-					}
-					if (/[\r\n]/.test(headerName)) {
-						throw new ToolError(`CRLF characters detected in header name '${headerName}': prohibited`);
-					}
-					const envVal = process.env[envVarName];
-					if (!envVal || envVal.trim() === "") {
-						throw new ToolError(
-							`Environment variable '${envVarName}' specified for header '${headerName}' in header_env_map is not set or empty`,
-						);
-					}
-					const headerVal = envVal.trim();
-					if (/[\r\n]/.test(headerVal)) {
-						throw new ToolError(`CRLF characters detected in environment variable '${envVarName}': prohibited`);
-					}
-					finalHeaders[headerName.toLowerCase()] = headerVal;
-				}
-			}
-
-			// 通过 new Headers 预测试构造合法性，若存在非法字符在任何网络动作发生前直接抛错
-			try {
-				new Headers(finalHeaders);
-			} catch {
-				throw new ToolError(`Invalid header name or value in ${label}: header validation failed`);
-			}
-			if (finalHeaders.host && finalHeaders.host.toLowerCase() !== parsed.host.toLowerCase()) {
-				throw new ToolError(`Host header must match the request URL origin in ${label}`);
-			}
-
-			// 解析 Body
-			let resolvedBody: string | undefined;
-			if (bodyFile) {
-				const resolvedBodyPath = resolveReadPath(bodyFile, this.session.cwd);
-				resolvedBody = await this.readSafeFile(resolvedBodyPath, 1024 * 1024, `${label} body_file`);
-			} else if (rawBody !== undefined) {
-				resolvedBody = rawBody;
-			} else {
-				resolvedBody = inheritedBody;
-			}
-			if (resolvedBody && Buffer.byteLength(resolvedBody, "utf8") > 1024 * 1024) {
-				throw new ToolError(`${label} request body exceeds maximum allowed size (1 MiB)`);
-			}
-
-			return {
-				id,
-				name,
-				url: urlStr,
-				method,
-				finalHeaders,
-				body: method !== "GET" && method !== "HEAD" ? resolvedBody : undefined,
-			};
-		};
-
-		// 预构建 Baseline 请求
-		const baselineHasInlineHeaders = !!params.baseline_request?.headers;
-		const baselineAuthEnv = baseline.auth_header_env ?? params.auth_header_env;
-		const preparedBaseline = await preconstructAndValidate(
-			"baseline request",
-			"baseline",
-			undefined,
-			baseline.url,
-			baseline.method,
-			baseline.headers,
-			baselineAuthEnv,
-			baseline.header_env_map,
-			baseline.body,
-			baseline.body_file,
-			undefined,
-			{},
-			baselineHasInlineHeaders,
-		);
-
-		// 提取 baseline 中明确非凭据的安全静态 Header（剔除敏感特征头与全部 env-mapped 凭据头）
-		const baselineEnvHeaderNames = new Set<string>();
-		if (baseline.auth_header_env || params.auth_header_env) {
-			baselineEnvHeaderNames.add("authorization");
-		}
-		if (baseline.header_env_map) {
-			for (const hName of Object.keys(baseline.header_env_map)) {
-				baselineEnvHeaderNames.add(hName.toLowerCase());
-			}
-		}
-
-		const safeInheritedBaselineHeaders: Record<string, string> = {};
-		if (baseline.headers) {
-			for (const [k, v] of Object.entries(baseline.headers)) {
-				const lowerK = k.toLowerCase();
-				if (!SENSITIVE_KEY_PATTERN.test(lowerK) && !baselineEnvHeaderNames.has(lowerK)) {
-					safeInheritedBaselineHeaders[lowerK] = v;
-				}
-			}
-		}
-
-		// 预构建全部 Variant 请求：任何一个 variant 的错误都会在此阶段抛错，确保 0 个网络请求发生
-		const preparedVariants: PreparedReplayRequest[] = [];
-		const variantsFromArgs = !!params.variant_requests;
-		for (let i = 0; i < rawVariants.length; i++) {
-			const v = rawVariants[i];
-			const variantId = v.id || `variant-${i + 1}`;
-			const pv = await preconstructAndValidate(
-				`variant '${variantId}'`,
-				variantId,
-				v.name,
-				v.url ?? baseline.url,
-				v.method ?? baseline.method,
-				v.headers,
-				v.auth_header_env,
-				v.header_env_map,
-				v.body,
-				v.body_file,
-				preparedBaseline.body,
-				safeInheritedBaselineHeaders,
-				variantsFromArgs,
-			);
-			preparedVariants.push(pv);
-		}
-
-		// 5. 超时与取消控制：结合 caller signal、总体超时与单请求超时
-		const timeoutSeconds = Math.min(Math.max(params.timeout ?? 30, 5), 120);
-		const overallController = new AbortController();
-		const onParentAbort = () => overallController.abort(signal?.reason);
-		if (signal) {
-			if (signal.aborted) {
-				throw new ToolError("Operation aborted before network replay execution");
-			}
-			signal.addEventListener("abort", onParentAbort, { once: true });
-		}
-		const overallTimeoutTimer = setTimeout(
-			() => overallController.abort(new Error(`network_replay execution timed out (${timeoutSeconds}s)`)),
-			timeoutSeconds * 1000,
-		);
-
-		const maxCapBytes = Math.min(Math.max(params.max_bytes ?? 524288, 1024), 10 * 1024 * 1024);
-		const fetchFn = this.options.fetcher ?? fetch;
-
-		// 6. 执行单个请求的核心安全封装
-		const executeRequest = async (req: PreparedReplayRequest) => {
-			if (overallController.signal.aborted) {
-				throw new ToolError(
-					`network_replay aborted or timed out: ${overallController.signal.reason?.message ?? "Operation cancelled"}`,
-				);
-			}
-
-			// 单请求超时控制（上限 30 秒或总体剩余时间）
-			const reqController = new AbortController();
-			const onOverallAbort = () => reqController.abort(overallController.signal.reason);
-			overallController.signal.addEventListener("abort", onOverallAbort, { once: true });
-			const perReqTimer = setTimeout(
-				() => reqController.abort(new Error("Single request timed out")),
-				Math.min(timeoutSeconds * 1000, 30_000),
-			);
-
-			try {
-				// 执行 fetch：强制 redirect: "manual"，禁止跨源重定向泄露凭据；保持默认安全 TLS 校验
-				const res = await fetchFn(req.url, {
-					method: req.method,
-					headers: req.finalHeaders,
-					body: req.body,
-					redirect: "manual",
-					signal: reqController.signal,
-				});
-
-				// 流式读取响应流：增量计数与截断，避免 O(n²) 频繁拼接与哈希计算
-				const chunks: Uint8Array[] = [];
-				let capturedBytes = 0;
-				let totalBytes = 0;
-				let truncated = false;
-
-				if (res.body) {
-					const reader = res.body.getReader();
-					try {
-						while (true) {
-							const { done, value } = await reader.read();
-							if (done) break;
-							totalBytes += value.byteLength;
-							const remaining = maxCapBytes - capturedBytes;
-							if (remaining > 0) {
-								if (value.byteLength <= remaining) {
-									chunks.push(value);
-									capturedBytes += value.byteLength;
-								} else {
-									chunks.push(value.subarray(0, remaining));
-									capturedBytes += remaining;
-									truncated = true;
-									await reader.cancel().catch(() => {});
-									break;
-								}
-							} else {
-								truncated = true;
-								await reader.cancel().catch(() => {});
-								break;
-							}
-						}
-					} finally {
-						reader.releaseLock();
-					}
-				}
-
-				const receivedBuffer = Buffer.concat(chunks);
-				const hash = createHash("sha256").update(receivedBuffer).digest("hex");
-				const bodyHashScope = truncated ? ("truncated_prefix" as const) : ("complete" as const);
-
-				// 响应头安全过滤：仅允许安全响应头白名单（使用 Object.hasOwn 防止原型污染），并限制单值长度
-				const safeHeaders: Record<string, string> = {};
-				res.headers.forEach((v, k) => {
-					const lowerKey = k.toLowerCase();
-					if (SENSITIVE_KEY_PATTERN.test(lowerKey)) return;
-					if (!Object.hasOwn(SAFE_RESPONSE_HEADERS, lowerKey)) return;
-
-					if (lowerKey === "location") {
-						// Location 头脱敏：严格剔除 search query 参数与 hash 锚点（防止 OAuth code/access_token 泄露）
-						try {
-							const locUrl = new URL(v, req.url);
-							locUrl.search = "";
-							locUrl.hash = "";
-							locUrl.username = "";
-							locUrl.password = "";
-							safeHeaders[lowerKey] = locUrl.toString().slice(0, 512);
-						} catch {
-							safeHeaders[lowerKey] = "[REDACTED LOCATION]";
-						}
-					} else {
-						safeHeaders[lowerKey] = v.slice(0, 512);
-					}
-				});
-
-				// 若显式配置 capture_response_artifacts: true，则受控持久化至 private artifact
-				let artifactId: string | undefined;
-				let artifactPath: string | undefined;
-				if (params.capture_response_artifacts) {
-					try {
-						const allocation = await this.session.allocateOutputArtifact?.("app_experiment");
-						let outputPath: string;
-						let outputId: string;
-						if (allocation?.path && allocation.id) {
-							outputPath = allocation.path;
-							outputId = allocation.id;
-						} else {
-							const artDir = path.join(this.session.cwd, "artifacts", "replay");
-							await fs.mkdir(artDir, { recursive: true, mode: 0o700 });
-							const runDir = await fs.mkdtemp(path.join(artDir, "response-"));
-							outputPath = path.join(runDir, "body.bin");
-							outputId = path.basename(runDir);
-						}
-						await fs.writeFile(outputPath, receivedBuffer, { mode: 0o600, flag: "wx" });
-						artifactPath = outputPath;
-						artifactId = outputId;
-					} catch {
-						throw new ToolError(
-							"Response received but private artifact publication failed; no evidence artifact was recorded",
-						);
-					}
-				}
-
-				return {
-					status: res.status,
-					statusText: res.statusText,
-					headers: safeHeaders,
-					bodyBytes: totalBytes,
-					bodySha256: hash,
-					bodyHashScope,
-					bodyTruncated: truncated,
-					artifactId,
-					artifactPath,
-				};
-			} catch (err) {
-				if (overallController.signal.aborted) {
-					throw new ToolError(
-						`network_replay aborted or timed out: ${overallController.signal.reason?.message ?? "Operation timed out"}`,
-					);
-				}
-				throw err;
-			} finally {
-				clearTimeout(perReqTimer);
-				overallController.signal.removeEventListener("abort", onOverallAbort);
-			}
-		};
-
-		try {
-			// 7. 发起 Baseline 请求
-			const baselineRes = await executeRequest(preparedBaseline);
-
-			// 8. 依次执行 Variant 请求并对比差异
-			const variantResults: NonNullable<AppExperimentDetails["variantResults"]> = [];
-			for (const pv of preparedVariants) {
-				const vRes = await executeRequest(pv);
-
-				const statusMatch = vRes.status === baselineRes.status;
-				// 若任一响应被截断，哈希无法证明完整内容一致性，bodyHashMatch 显式标记为 null（unknown）
-				const isTruncated = vRes.bodyTruncated === true || baselineRes.bodyTruncated === true;
-				const bodyHashMatch = isTruncated ? null : vRes.bodySha256 === baselineRes.bodySha256;
-
-				let statusDelta = `${baselineRes.status} -> ${vRes.status}`;
-				if (isTruncated) {
-					statusDelta += " (body truncated; hash match unknown)";
-				}
-
-				variantResults.push({
-					id: pv.id,
-					name: pv.name,
-					status: vRes.status,
-					statusText: vRes.statusText,
-					headers: vRes.headers,
-					bodyBytes: vRes.bodyBytes,
-					bodySha256: vRes.bodySha256,
-					bodyHashScope: vRes.bodyHashScope,
-					bodyTruncated: vRes.bodyTruncated,
-					artifactId: vRes.artifactId,
-					artifactPath: vRes.artifactPath,
-					diffAgainstBaseline: {
-						statusMatch,
-						bodyHashMatch,
-						statusDelta,
-						lengthDelta: vRes.bodyBytes - baselineRes.bodyBytes,
-					},
-				});
-			}
-
-			// 9. 格式化输出文本（安全渲染 URL，剔除 search 与 hash 锚点）
-			let sanitizedBaselineUrl = preparedBaseline.url;
-			try {
-				const u = new URL(preparedBaseline.url);
-				sanitizedBaselineUrl = `${u.origin}${u.pathname}`;
-			} catch {
-				sanitizedBaselineUrl = "[INVALID URL]";
-			}
-
-			const lines = [
-				`// Network API Replay Comparison`,
-				`Allowed Origins: [${allowedOrigins.join(", ")}]`,
-				`Baseline: ${preparedBaseline.method} ${sanitizedBaselineUrl} (Status: ${baselineRes.status} ${baselineRes.statusText}, Length: ${baselineRes.bodyBytes} bytes, SHA-256: ${baselineRes.bodySha256.slice(0, 16)}... [${baselineRes.bodyHashScope}])`,
-				`Variants Evaluated (${variantResults.length}):`,
-				...variantResults.map(
-					v =>
-						`  • [${v.id}] ${v.name ?? "variant"}: Status ${v.status}, Delta: ${v.diffAgainstBaseline?.statusDelta}, Body delta: ${v.diffAgainstBaseline?.lengthDelta}b, Hash match: ${v.diffAgainstBaseline?.bodyHashMatch === null ? "unknown (truncated)" : v.diffAgainstBaseline?.bodyHashMatch}`,
-				),
-				`Notice: Status code variations alone do not prove authorization flaws; verification of business response data is required.`,
-			];
-
-			return {
-				content: [{ type: "text", text: lines.join("\n") }],
-				details: {
+		return {
+			content: [{ type: "text", text: lines.join("\n") }],
+			details: {
+				action: "network_replay",
+				status: "ok",
+				...(outcome.workflowId ? { workflowId: outcome.workflowId } : {}),
+				...(outcome.stepId ? { stepId: outcome.stepId } : {}),
+				...(outcome.runId ? { runId: outcome.runId } : {}),
+				...(outcome.runDir ? { runDir: outcome.runDir } : {}),
+				...(outcome.casePath ? { casePath: outcome.casePath } : {}),
+				...(outcome.caseRelativePath ? { caseRelativePath: outcome.caseRelativePath } : {}),
+				...(outcome.caseSha256 ? { caseSha256: outcome.caseSha256 } : {}),
+				...(outcome.reportPath ? { reportPath: outcome.reportPath } : {}),
+				...(outcome.reportRelativePath ? { reportRelativePath: outcome.reportRelativePath } : {}),
+				...(outcome.reportSha256 ? { reportSha256: outcome.reportSha256 } : {}),
+				...(outcome.outputPaths ? { outputPaths: outcome.outputPaths } : {}),
+				...(outcome.relativeOutputPaths ? { relativeOutputPaths: outcome.relativeOutputPaths } : {}),
+				...(outcome.recordedResponse ? { recordedResponse: outcome.recordedResponse } : {}),
+				baselineResult: outcome.baselineResult,
+				...(outcome.baselineVsRecorded ? { baselineVsRecorded: outcome.baselineVsRecorded } : {}),
+				variantResults: outcome.variantResults,
+				...(outcome.assertionResults.length > 0 ? { assertionResults: outcome.assertionResults } : {}),
+				assertionsPassed: outcome.assertionsPassed,
+				observations: outcome.observations,
+				...(outcome.evidenceCandidates ? { evidenceCandidates: outcome.evidenceCandidates } : {}),
+				acceptance: "pending_verification",
+				reproducibleParams: {
 					action: "network_replay",
-					status: "ok",
-					baselineResult: baselineRes,
-					variantResults,
-					observations: [
-						`Replayed baseline and ${variantResults.length} variant requests against ${allowedOrigins.join(", ")}`,
-					],
-					acceptance: "pending_verification",
-					reproducibleParams: {
-						action: "network_replay",
-						allowed_origins: allowedOrigins,
+					allowed_origins: outcome.allowedOrigins,
+					...(outcome.caseRelativePath ? { case_file: outcome.caseRelativePath } : {}),
+					...(outcome.workflowId ? { workflow_id: outcome.workflowId } : {}),
+					...(outcome.stepId ? { step_id: outcome.stepId } : {}),
+					...(outcome.runId ? { run_id: outcome.runId } : {}),
+				},
+			},
+		};
+	}
+
+	// --------------------------------------------------------------------------
+	// Action: network_import
+	// --------------------------------------------------------------------------
+
+	private async handleNetworkImport(
+		params: AppExperimentParams,
+		signal?: AbortSignal,
+	): Promise<AgentToolResult<AppExperimentDetails> & { details: AppExperimentDetails }> {
+		if (this.session.getPlanModeState?.()?.enabled) {
+			throw new ToolError(
+				"Plan mode is read-only. network_import writes ReplayCase v1 and body artifacts into the analysis run directory; exit plan mode first.",
+			);
+		}
+
+		const outcome = await executeNetworkImport({
+			projectDir: this.session.cwd,
+			workspacePath: params.workspace_path,
+			workflowId: params.workflow_id,
+			stepId: params.step_id,
+			runId: params.run_id,
+			capturePath: params.capture_path,
+			captureFormat: params.capture_format,
+			entryIndex: params.entry_index,
+			flowId: params.flow_id,
+			outputPath: params.output_path,
+			maxBytes: params.max_bytes,
+			timeout: params.timeout,
+			which: this.options.which,
+			signal,
+		});
+
+		if (outcome.status === "missing_dependency") {
+			return {
+				content: [
+					{
+						type: "text",
+						text: `[Missing Dependency] ${outcome.error}\nInstall command: ${outcome.setupCommands.join(" || ")}`,
 					},
+				],
+				details: {
+					action: "network_import",
+					status: "missing_dependency",
+					error: outcome.error,
+					missingTools: outcome.missingTools,
+					setupCommands: outcome.setupCommands,
 				},
 			};
-		} finally {
-			clearTimeout(overallTimeoutTimer);
-			if (signal) {
-				signal.removeEventListener("abort", onParentAbort);
-			}
 		}
+
+		const rc = outcome.replayCase;
+		const lines = [
+			`// Network Capture Import (ReplayCase v1)`,
+			`Workflow / Step / Run: ${outcome.workflowId} / ${outcome.stepId} / ${outcome.runId}`,
+			`Source: ${rc.source.path} (format: ${rc.source.format}, sha256: ${rc.source.sha256.slice(0, 16)}..., entry: #${rc.source.entry_index} [${rc.source.entry_id}])`,
+			`Engine: ${outcome.engineVersion}`,
+			`Case File (mode 0600): ${outcome.caseRelativePath} (sha256: ${outcome.caseSha256.slice(0, 16)}...)`,
+			`Request: ${rc.request.method} ${rc.request.url} (headers: ${rc.request.headers.length}, credential_slots: ${rc.request.credential_slots.length})`,
+			`Request Body: path=${rc.request.body.path ?? "none"}, bytes=${rc.request.body.size_bytes}, representation=${rc.request.body.representation}, completeness=${rc.request.body.completeness}${rc.request.body.sha256 ? `, sha256=${rc.request.body.sha256.slice(0, 16)}...` : ""}`,
+			`Recorded Response: HTTP ${rc.recorded_response.status} ${rc.recorded_response.status_text} (headers: ${rc.recorded_response.headers.length})`,
+			`Recorded Response Body: path=${rc.recorded_response.body.path ?? "none"}, bytes=${rc.recorded_response.body.size_bytes}, representation=${rc.recorded_response.body.representation}, completeness=${rc.recorded_response.body.completeness}${rc.recorded_response.body.sha256 ? `, sha256=${rc.recorded_response.body.sha256.slice(0, 16)}...` : ""}`,
+			`Replay Ready: ${rc.replay_ready}`,
+			...(rc.request.credential_slots.length > 0
+				? [
+						`Credential Slots (values stripped):`,
+						...rc.request.credential_slots.map(
+							s => `  • [${s.location}] ${s.name} -> ${s.env_var} (${s.replay_binding})`,
+						),
+					]
+				: []),
+			...(rc.blocked_prerequisites.length > 0
+				? [`Blocked Prerequisites:`, ...rc.blocked_prerequisites.map(b => `  • [${b.code}] ${b.message}`)]
+				: []),
+			`Record Hint: Pass output_paths: ${JSON.stringify(outcome.relativeOutputPaths)} when calling reverse_workspace(action: "record").`,
+		];
+
+		return {
+			content: [{ type: "text", text: lines.join("\n") }],
+			details: {
+				action: "network_import",
+				status: "ok",
+				workflowId: outcome.workflowId,
+				stepId: outcome.stepId,
+				runId: outcome.runId,
+				runDir: outcome.runDir,
+				casePath: outcome.casePath,
+				caseRelativePath: outcome.caseRelativePath,
+				caseSha256: outcome.caseSha256,
+				requestBodyPath: outcome.requestBodyPath,
+				requestBodyRelativePath: outcome.requestBodyRelativePath,
+				responseBodyPath: outcome.responseBodyPath,
+				responseBodyRelativePath: outcome.responseBodyRelativePath,
+				outputPaths: outcome.outputPaths,
+				relativeOutputPaths: outcome.relativeOutputPaths,
+				replayCase: outcome.replayCase,
+				argv: outcome.argv,
+				exitCode: outcome.exitCode,
+				engineVersion: outcome.engineVersion,
+				observations: outcome.observations,
+				evidenceCandidates: outcome.evidenceCandidates,
+				acceptance: "pending_verification",
+				reproducibleParams: {
+					action: "network_import",
+					workflow_id: outcome.workflowId,
+					step_id: outcome.stepId,
+					run_id: outcome.runId,
+					capture_path: rc.source.path,
+					capture_format: rc.source.format,
+					...(rc.source.selector.kind === "entry_index"
+						? { entry_index: rc.source.selector.value }
+						: { flow_id: rc.source.selector.value }),
+				},
+			},
+		};
+	}
+
+	// --------------------------------------------------------------------------
+	// Action: network_compare
+	// --------------------------------------------------------------------------
+
+	private async handleNetworkCompare(
+		params: AppExperimentParams,
+		signal?: AbortSignal,
+	): Promise<AgentToolResult<AppExperimentDetails> & { details: AppExperimentDetails }> {
+		if (this.session.getPlanModeState?.()?.enabled) {
+			throw new ToolError(
+				"Plan mode is read-only. network_compare writes comparison reports into the analysis run directory; exit plan mode first.",
+			);
+		}
+
+		const outcome = await executeNetworkCompare({
+			projectDir: this.session.cwd,
+			workspacePath: params.workspace_path,
+			workflowId: params.workflow_id,
+			stepId: params.step_id,
+			runId: params.run_id,
+			leftCase: params.left_case,
+			rightCase: params.right_case,
+			outputPath: params.output_path,
+			ignoreJsonPointers: params.ignore_json_pointers,
+			compareHeaders: params.compare_headers,
+			assertions: params.assertions,
+			signal,
+		});
+
+		const reqCmp = outcome.requestComparison;
+		const respCmp = outcome.responseComparison;
+
+		const lines = [
+			`// Offline Network Case Comparison`,
+			`Workflow / Step / Run: ${outcome.workflowId} / ${outcome.stepId} / ${outcome.runId}`,
+			`Left Case: ${outcome.report.left_case.path} (${outcome.report.left_case.case_id})`,
+			`Right Case: ${outcome.report.right_case.path} (${outcome.report.right_case.case_id})`,
+			`Request Diff: method_equal=${reqCmp.method_equal} (${reqCmp.left_method} vs ${reqCmp.right_method}), url_equal=${reqCmp.url_equal}, headers_equal=${reqCmp.headers_equal}, raw_equal=${String(reqCmp.raw_equal)}, normalized_equal=${String(reqCmp.normalized_equal)} (unignored_diffs=${reqCmp.total_unignored_diffs}, ignored_diffs=${reqCmp.total_ignored_diffs})`,
+			respCmp.available
+				? `Recorded Response Diff: status_equal=${respCmp.status_equal} (${respCmp.status_delta}), headers_equal=${respCmp.headers_equal}, raw_equal=${String(respCmp.raw_equal)}, normalized_equal=${String(respCmp.normalized_equal)} (unignored_diffs=${respCmp.total_unignored_diffs}, ignored_diffs=${respCmp.total_ignored_diffs})`
+				: `Recorded Response Diff: not_applicable (${respCmp.comparison_reason ?? "recorded_response_absent"})`,
+			...(outcome.assertionResults.length > 0
+				? [
+						`Assertions (${outcome.assertionResults.filter(a => a.passed).length}/${outcome.assertionResults.length} passed):`,
+						...outcome.assertionResults.map(
+							a => `  • [${a.target}] ${a.pointer || "(root)"}: ${a.status}${a.reason ? ` (${a.reason})` : ""}`,
+						),
+					]
+				: []),
+			`Report File (mode 0600): ${outcome.reportRelativePath} (sha256: ${outcome.reportSha256.slice(0, 16)}...)`,
+			`Record Hint: Pass output_paths: ${JSON.stringify(outcome.relativeOutputPaths)} when calling reverse_workspace(action: "record").`,
+			`Notice: Offline comparison does not execute generator scripts or certify independent_reproduction.`,
+		];
+
+		return {
+			content: [{ type: "text", text: lines.join("\n") }],
+			details: {
+				action: "network_compare",
+				status: "ok",
+				workflowId: outcome.workflowId,
+				stepId: outcome.stepId,
+				runId: outcome.runId,
+				runDir: outcome.runDir,
+				reportPath: outcome.reportPath,
+				reportRelativePath: outcome.reportRelativePath,
+				reportSha256: outcome.reportSha256,
+				outputPaths: outcome.outputPaths,
+				relativeOutputPaths: outcome.relativeOutputPaths,
+				compareReport: outcome.report,
+				requestComparison: outcome.requestComparison,
+				responseComparison: outcome.responseComparison,
+				...(outcome.assertionResults.length > 0 ? { assertionResults: outcome.assertionResults } : {}),
+				assertionsPassed: outcome.assertionsPassed,
+				exitCode: 0,
+				observations: outcome.observations,
+				evidenceCandidates: outcome.evidenceCandidates,
+				acceptance: "pending_verification",
+				reproducibleParams: {
+					action: "network_compare",
+					workflow_id: outcome.workflowId,
+					step_id: outcome.stepId,
+					run_id: outcome.runId,
+					left_case: outcome.report.left_case.path,
+					right_case: outcome.report.right_case.path,
+				},
+			},
+		};
 	}
 
 	// --------------------------------------------------------------------------
@@ -2737,8 +2550,10 @@ export class AppExperimentTool implements AgentTool<typeof appExperimentSchema, 
 					let dumpPath: string | null = null;
 					if (this.options.which) {
 						dumpPath = this.options.which("mitmdump");
-					} else if (typeof Bun !== "undefined" && typeof Bun.which === "function") {
-						dumpPath = Bun.which("mitmdump");
+					} else {
+						dumpPath =
+							resolveMitmproxy().mitmdumpPath ??
+							(typeof Bun !== "undefined" && typeof Bun.which === "function" ? Bun.which("mitmdump") : null);
 					}
 					if (!dumpPath) {
 						return {
@@ -2888,12 +2703,10 @@ export class AppExperimentTool implements AgentTool<typeof appExperimentSchema, 
 						procLogs = (procLogs + `\n${err.message}`).slice(-16384);
 					});
 
-					// 就绪特征与端口绑定冲突特征（包含 stdout 与 stderr）
-					const LISTENING_REGEX =
-						/(?:Proxy server listening at|listening at|Proxy listening|Proxy server listening)/i;
+					// 监控子进程存活、端口冲突错误及目标端口实际 TCP 就绪状态（此前已通过 checkPortAvailable 确认端口空闲）
 					const EADDR_REGEX = /(?:Address already in use|EADDRINUSE|cannot bind|error: unable to bind)/i;
 					const startWait = Date.now();
-					const readinessTimeout = 5000;
+					const readinessTimeout = 10_000;
 					let isReady = false;
 
 					while (Date.now() - startWait < readinessTimeout) {
@@ -2902,12 +2715,10 @@ export class AppExperimentTool implements AgentTool<typeof appExperimentSchema, 
 						if (EADDR_REGEX.test(procLogs)) break;
 						if (signal?.aborted) break;
 
-						if (LISTENING_REGEX.test(procLogs)) {
-							const canConnect = await probeTcpPort(port, 300);
-							if (canConnect && !exited && this.state.generation === startingGen) {
-								isReady = true;
-								break;
-							}
+						const canConnect = await probeTcpPort(port, 200);
+						if (canConnect && !exited && !EADDR_REGEX.test(procLogs) && this.state.generation === startingGen) {
+							isReady = true;
+							break;
 						}
 						const { promise: delayPromise, resolve: delayResolve } = Promise.withResolvers<void>();
 						setTimeout(delayResolve, 50);
@@ -2915,7 +2726,7 @@ export class AppExperimentTool implements AgentTool<typeof appExperimentSchema, 
 					}
 
 					if (this.state.generation !== startingGen || !isReady || exited || child.pid === undefined) {
-						killChildProcessGroup(child, true);
+						await terminateChildProcess(child, 1000);
 						this.state.activeMitmProcess = null;
 						await fs.unlink(flowPath).catch(() => {});
 						const errReason =

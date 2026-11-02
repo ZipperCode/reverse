@@ -13,6 +13,7 @@ import reverseWorkflowDescription from "../prompts/tools/reverse-workflow.md" wi
 import { EvidenceStore } from "../evidence/store";
 import { ReverseKnowledgeStore } from "../reverse-knowledge/store";
 import { exportWorkflowToWorkspace, hashFile, type ReverseWorkspaceManifest } from "../reverse-workspace";
+import type { PlanToolRecommendation } from "../reverse-workflow/planner";
 import {
 	ReverseWorkflowStore,
 	sniffTargetFormat,
@@ -234,7 +235,9 @@ export interface ReverseWorkflowDetails {
 	plan?: {
 		format: TargetFormat;
 		steps: WorkflowStepRecord[];
+		recommendations?: PlanToolRecommendation[];
 	};
+	recommendations?: PlanToolRecommendation[];
 	recovery_plan?: RecoveryPlan;
 	metrics?: WorkflowMetrics;
 	export_format?: "markdown" | "json";
@@ -433,6 +436,9 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					"",
 					"Planned Steps:",
 					stepListText,
+					...plan.recommendations.map(
+						r => `Optional investigation: \`${r.tool}\` (${r.actions.join(" → ")}). ${r.guidance}`,
+					),
 					"",
 					`Next recommended step: \`${workflow.steps[0]?.id}\` via \`${workflow.steps[0]?.tool}\`. Run the tool and call 'record' when finished.`,
 					...(priorKnowledge.length > 0
@@ -456,6 +462,7 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 						action: "create",
 						workflow,
 						metrics,
+						recommendations: plan.recommendations,
 						knowledge_refs: knowledgeRefs,
 						prior_knowledge: priorKnowledge.map(k => ({
 							id: k.id,
@@ -561,6 +568,9 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 				const text = [
 					`Deterministic Reverse Engineering Plan for **${plan.format}**:`,
 					stepListText,
+					...plan.recommendations.map(
+						r => `Optional investigation: \`${r.tool}\` (${r.actions.join(" → ")}). ${r.guidance}`,
+					),
 					...priorKnowledgeLines,
 					"",
 					'To initiate this workflow and start tracking execution state, call \'reverse_workflow(action: "create", target: "...")\'.',

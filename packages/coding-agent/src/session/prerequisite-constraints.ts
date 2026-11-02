@@ -96,6 +96,9 @@ const NATIVE_TOOL_CATALOG_DEPENDENCIES: Readonly<Record<string, readonly string[
 	dex_unpack: ["frida-dexdump", "blackdex"],
 	instruction_trace: ["qbdi"],
 	deobfuscate: ["d810-ng", "msynth", "simplify", "jadx-string-decrypt"],
+	format_inspect: ["kaitai-struct-compiler", "kaitaistruct"],
+	capability_inspect: ["capa"],
+	app_experiment: ["mitmproxy"],
 };
 
 /** Actions that exist to recover from a missing dependency and must stay reachable. */
@@ -188,6 +191,20 @@ export interface PrerequisiteConstraintGateDeps {
 
 function isPrerequisiteGatedTool(toolName: string): boolean {
 	return Object.hasOwn(NATIVE_TOOL_CATALOG_DEPENDENCIES, toolName);
+}
+
+function requiresCatalogDependency(toolName: string, dependencyId: string, args?: Record<string, unknown>): boolean {
+	const action = args?.action;
+	if (toolName === "format_inspect") {
+		return dependencyId === "kaitai-struct-compiler"
+			? action === "compile" || action === "parse" || action === "validate"
+			: action === "parse" || action === "validate";
+	}
+	if (toolName === "capability_inspect") return action === "detect";
+	if (toolName === "app_experiment") {
+		return action === "mitm_capture" || (action === "network_import" && args?.capture_format === "mitm");
+	}
+	return true;
 }
 
 /** Trusted catalog setup command for a dependency id; never derived from parsed text. */
@@ -495,6 +512,7 @@ export class PrerequisiteConstraintGate {
 		if (constraints.length === 0) return undefined;
 
 		for (const constraint of constraints) {
+			if (!requiresCatalogDependency(toolName, constraint.dependencyId, options.args)) continue;
 			const readiness = await this.#resolveReadiness(constraint.dependencyId, {
 				toolName,
 				toolCallId: options.toolCallId,

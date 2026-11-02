@@ -201,6 +201,7 @@ describe("reverse_workflow target-first routing and deterministic plans", () => 
 
 			const toolsUsed = res.details.plan?.steps.map(s => s.tool);
 			expect(toolsUsed).toEqual(["triage", "binary_metadata_inspect", "r2_inspect", "evidence"]);
+			expect(res.details.plan?.recommendations?.map(r => r.tool)).toEqual(["capability_inspect"]);
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -313,6 +314,7 @@ describe("reverse_workflow target-first routing and deterministic plans", () => 
 			expect(res.details.plan?.steps[1]?.tool).toBe("pcap_inspect");
 			expect(res.details.plan?.steps[2]?.tool).toBe("pcap_inspect");
 			expect(res.details.plan?.steps[3]?.tool).toBe("evidence");
+			expect(res.details.plan?.recommendations?.map(r => r.tool)).toContain("app_experiment");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -346,6 +348,25 @@ describe("reverse_workflow target-first routing and deterministic plans", () => 
 			const res = await tool.execute("call_plan", { action: "plan", format: "WASM", target: "virtual/app.wasm" });
 			expect(res.details.plan?.format).toBe("WASM");
 			expect(res.details.plan?.steps).toHaveLength(4);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("recommends capture and schema experiments without adding steps or modifying stored workflows", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rw-protocol-plan-"));
+		try {
+			const target = path.join(tempDir, "capture.har");
+			await fs.writeFile(target, "{}");
+			const tool = new ReverseWorkflowTool(createTestSession(tempDir));
+			const created = await tool.execute("create", { action: "create", target });
+			const originalSteps = created.details.workflow!.steps;
+			expect(created.details.recommendations?.map(r => r.tool)).toEqual(["app_experiment", "format_inspect"]);
+			const preview = await tool.execute("preview", { action: "plan", target, goal: "Inspect HTTP protocol" });
+			expect(preview.details.plan?.recommendations?.map(r => r.tool)).toEqual(["app_experiment", "format_inspect"]);
+			expect(preview.details.plan?.steps.map(s => s.tool)).toEqual(originalSteps.map(s => s.tool));
+			const status = await tool.execute("status", { action: "status", workflow_id: created.details.workflow!.id });
+			expect(status.details.workflow!.steps).toEqual(originalSteps);
 		} finally {
 			await removeWithRetries(tempDir);
 		}

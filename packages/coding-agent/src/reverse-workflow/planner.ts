@@ -132,6 +132,12 @@ export function sniffTargetFormat(targetPath: string, buffer?: Uint8Array, _file
 	return "unknown";
 }
 
+export interface PlanToolRecommendation {
+	tool: string;
+	actions: string[];
+	guidance: string;
+}
+
 export interface PlanGenerationOptions {
 	goal?: string;
 	maxAttempts?: number;
@@ -146,7 +152,7 @@ export function generateDeterministicPlan(
 	targetPath: string,
 	detectedFormat: TargetFormat,
 	options: PlanGenerationOptions = {},
-): { format: TargetFormat; steps: WorkflowStepRecord[] } {
+): { format: TargetFormat; steps: WorkflowStepRecord[]; recommendations: PlanToolRecommendation[] } {
 	const effectiveFormat =
 		normalizeTargetFormat(options.formatOverride) ?? (detectedFormat !== "unknown" ? detectedFormat : "unknown");
 
@@ -605,5 +611,32 @@ export function generateDeterministicPlan(
 		updated_at: now,
 	}));
 
-	return { format: effectiveFormat, steps };
+	// 推荐仅供代理选择实验，保持既有步骤和门禁不变，不自动启动额外引擎。
+	const recommendations: PlanToolRecommendation[] = [];
+	if (effectiveFormat === "PE" || effectiveFormat === "ELF") {
+		recommendations.push({
+			tool: "capability_inspect",
+			actions: ["detect"],
+			guidance:
+				"Bind the sample and explicit rules in reverse_workspace begin, then inspect capa match trees and typed locations. Treat matches as static candidates for decompiler/debugger/hook verification, not observed execution.",
+		});
+	}
+	const trafficGoal = /(?:\b(?:http|traffic|protocol|request|replay)\b|流量|协议|请求|回放)/i.test(options.goal ?? "");
+	if (/\.(?:har|mitm)$/i.test(targetPath) || effectiveFormat === "PCAP" || trafficGoal) {
+		recommendations.push({
+			tool: "app_experiment",
+			actions: ["network_import", "network_compare", "network_replay"],
+			guidance:
+				"Capture HTTP as HAR or .mitm, bind inputs in reverse_workspace begin, import an explicit entry, then compare generated candidates offline and replay only with explicit allowed_origins. PCAP is not a ReplayCase input; retain pcap_inspect for packet analysis.",
+		});
+	}
+	if (effectiveFormat === "unknown" || trafficGoal) {
+		recommendations.push({
+			tool: "format_inspect",
+			actions: ["compile", "parse", "validate"],
+			guidance:
+				"For a custom binary layout, write an explicit .ksy hypothesis, bind its imports and positive/negative samples in reverse_workspace begin, compile to a verified manifest, and validate exact fields and stream-relative offsets. Parsing success alone does not prove the protocol.",
+		});
+	}
+	return { format: effectiveFormat, steps, recommendations };
 }

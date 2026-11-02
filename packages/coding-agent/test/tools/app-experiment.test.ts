@@ -57,6 +57,8 @@ describe("app_experiment ApprovalGates tier enforcement", () => {
 			const tool = new AppExperimentTool(createTestSession(tempDir));
 			expect(tool.approval({ action: "preflight" })).toBe("read");
 			expect(tool.approval({ action: "extract_sandbox_data" })).toBe("write");
+			expect(tool.approval({ action: "network_import" })).toBe("write");
+			expect(tool.approval({ action: "network_compare" })).toBe("write");
 			expect(tool.approval({ action: "mitm_capture" })).toBe("exec");
 			expect(tool.approval({ action: "invoke_component" })).toBe("exec");
 			expect(tool.approval({ action: "query_provider" })).toBe("exec");
@@ -976,6 +978,56 @@ describe("app_experiment network replay comparison", () => {
 			expect(res.details.status).toBe("ok");
 			expect(res.details.baselineResult?.status).toBe(200);
 			expect(JSON.parse(serverReceivedBody)).toEqual({ protected: "credentials_in_file" });
+		} finally {
+			await server.close();
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("transmits arbitrary non-UTF8 binary body_file bytes without UTF-8 replacement corruption", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "app-exp-replay-bin-"));
+		const rawBinaryPayload = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff, 0xfe, 0xfd, 0x80, 0xc0, 0x42, 0x99]);
+		const observedBodies: Buffer[] = [];
+
+		const server = await createLoopbackServer((req, res) => {
+			const chunks: Buffer[] = [];
+			req.on("data", c => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+			req.on("end", () => {
+				const received = Buffer.concat(chunks);
+				observedBodies.push(received);
+				res.writeHead(200, { "Content-Type": "application/octet-stream" });
+				res.end(received);
+			});
+		});
+
+		try {
+			const binFilePath = path.join(tempDir, "frame.bin");
+			await fs.writeFile(binFilePath, rawBinaryPayload, { mode: 0o600 });
+
+			const tool = new AppExperimentTool(createTestSession(tempDir));
+			const res = await tool.execute("call-bin", {
+				action: "network_replay",
+				allowed_origins: [server.origin],
+				baseline_request: {
+					url: `${server.origin}/api/raw-frame`,
+					method: "POST",
+					headers: { "Content-Type": "application/octet-stream" },
+					body_file: binFilePath,
+				},
+				variant_requests: [
+					{
+						id: "inherited_bin",
+						name: "Inherits Binary Body",
+					},
+				],
+			});
+
+			expect(res.details.status).toBe("ok");
+			expect(observedBodies.length).toBe(2);
+			expect(Buffer.compare(observedBodies[0]!, rawBinaryPayload)).toBe(0);
+			expect(Buffer.compare(observedBodies[1]!, rawBinaryPayload)).toBe(0);
+			expect(res.details.variantResults?.[0]?.diffAgainstBaseline.raw_equal).toBe(true);
+			expect(res.details.variantResults?.[0]?.diffAgainstBaseline.normalized_equal).toBe("not_applicable");
 		} finally {
 			await server.close();
 			await removeWithRetries(tempDir);

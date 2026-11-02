@@ -68,6 +68,12 @@ import { buildAndInstallSoFixer, canBuildSoFixer } from "./sofixer-toolchain";
 import { buildAndInstallGhidraFindCrypt, canBuildGhidraFindCrypt, resolveGhidraInstallDir } from "./findcrypt-install";
 import { installRuntimeTool } from "./runtime-toolchain";
 import { installProtectionTool, isProtectionToolId, type ProtectionToolId } from "./protection-toolchain";
+import {
+	installCapa,
+	installKaitaiCompiler,
+	installKaitaiStructVenv,
+	resolveJavaForKaitai,
+} from "./protocol-toolchain";
 import { readMCPConfigFile, setMcpServerEnabled, updateMCPServer } from "../mcp/config-writer";
 import type { MCPServerConnection } from "../mcp/types";
 import type { MCPManager } from "../mcp/manager";
@@ -91,6 +97,7 @@ export interface ReverseInstallOptions {
 	signal?: AbortSignal;
 	plan?: ReverseInstallPlan;
 	report?: ReverseCheckReport;
+	fetch?: typeof globalThis.fetch;
 }
 
 export interface ReverseInstallStep {
@@ -117,7 +124,10 @@ export interface ReverseInstallStep {
 		| "sofixer"
 		| "ghidra-findcrypt"
 		| "runtime-toolchain"
-		| "protection-toolchain";
+		| "protection-toolchain"
+		| "kaitai-struct-compiler"
+		| "kaitaistruct"
+		| "capa";
 }
 
 export interface ReverseInstallPlan {
@@ -443,11 +453,23 @@ export function getReverseInstallPlan(
 			return false;
 		}
 
-		const currentStatus = (id === item.id ? item : statusById[id]) ?? item;
+		const currentStatus = id === item.id ? item : statusById[id];
 		if (currentStatus?.status === "installed") {
 			inProgress.delete(id);
 			visited.add(id);
 			return true;
+		}
+		if (!currentStatus && id !== item.id) {
+			const probedPath = probeCliBinary(desc, which, options.env ?? process.env, platform, {
+				settings: options.settings,
+				cwd: options.cwd,
+				agentDir: options.agentDir,
+			});
+			if (probedPath) {
+				inProgress.delete(id);
+				visited.add(id);
+				return true;
+			}
 		}
 
 		// 1. Recursively plan secondary dependencies and known prerequisites that are catalog tools
@@ -651,6 +673,66 @@ export function getReverseInstallPlan(
 			visited.add(id);
 			return true;
 		}
+		if (id === "kaitai-struct-compiler") {
+			steps.push({
+				id: "kaitai-struct-compiler",
+				name: desc.name ?? "Kaitai Struct Compiler (ksc)",
+				kind: "cli",
+				packageManager: "managed",
+				installer: "kaitai-struct-compiler",
+				command: `${APP_NAME} setup reverse kaitai-struct-compiler --execute`,
+				argv: [APP_NAME, "setup", "reverse", "kaitai-struct-compiler", "--execute"],
+				riskNote: t(
+					"cli.setup.reverse.kaitai-struct-compiler.risk",
+					"Downloads and installs pinned Kaitai Struct Compiler v0.11 universal distribution (GPL-3.0-or-later) into the agent tools directory.",
+				),
+				isDependency: id !== item.id,
+				manualInstructions: desc.manualInstructions?.[platform],
+			});
+			inProgress.delete(id);
+			visited.add(id);
+			return true;
+		}
+		if (id === "kaitaistruct") {
+			steps.push({
+				id: "kaitaistruct",
+				name: desc.name ?? "Kaitai Struct Python Runtime (kaitaistruct)",
+				kind: "cli",
+				packageManager: "pip",
+				installer: "kaitaistruct",
+				command: `${APP_NAME} setup reverse kaitaistruct (managed venv)`,
+				argv: [APP_NAME, "setup", "reverse", "kaitaistruct", "--execute"],
+				riskNote: t(
+					"cli.setup.reverse.kaitaistruct.risk",
+					"Provisions an isolated virtual environment in the agent directory and installs pinned kaitaistruct (0.11, MIT).",
+				),
+				isDependency: id !== item.id,
+				manualInstructions: desc.manualInstructions?.[platform],
+			});
+			inProgress.delete(id);
+			visited.add(id);
+			return true;
+		}
+		if (id === "capa") {
+			steps.push({
+				id: "capa",
+				name: desc.name ?? "capa (Mandiant Capability Detector)",
+				kind: "cli",
+				packageManager: "managed",
+				installer: "capa",
+				command: `${APP_NAME} setup reverse capa --execute`,
+				argv: [APP_NAME, "setup", "reverse", "capa", "--execute"],
+				riskNote: t(
+					"cli.setup.reverse.capa.risk",
+					"Provisions pinned Mandiant capa v10.0.0 engine and official capa-rules v10.0.0 (Apache-2.0) into the agent tools directory.",
+				),
+				isDependency: id !== item.id,
+				manualInstructions: desc.manualInstructions?.[platform],
+			});
+			inProgress.delete(id);
+			visited.add(id);
+			return true;
+		}
 		// 2. Find a viable recipe strictly on this platform
 		const recipes = desc.installCommands?.[platform] ?? [];
 		let chosenRecipe: PackageInstallCommand | undefined;
@@ -747,7 +829,10 @@ export function getReverseInstallPlan(
 			item.id === "triton" ||
 			item.id === "lief" ||
 			item.id === "sofixer" ||
-			item.id === "ghidra-findcrypt",
+			item.id === "ghidra-findcrypt" ||
+			item.id === "kaitai-struct-compiler" ||
+			item.id === "kaitaistruct" ||
+			item.id === "capa",
 		);
 		if (item.status === "installed" && !hasRecipe) {
 			return {
@@ -1063,7 +1148,7 @@ function probeCliBinary(
 	whichFn: SkillRequirementWhich,
 	env: Record<string, string | undefined>,
 	platform: SkillToolPlatform,
-	options?: { settings?: Settings; cwd?: string },
+	options?: { settings?: Settings; cwd?: string; agentDir?: string },
 ): string | null {
 	const npmPrefix =
 		env?.NPM_CONFIG_PREFIX ??
@@ -1083,6 +1168,7 @@ function probeCliBinary(
 		...(descriptor.id === "ida" ? {} : process.env),
 		...env,
 		PATH: combinedPath,
+		...(options?.agentDir ? { REVERSE_CODING_AGENT_DIR: options.agentDir } : {}),
 	};
 
 	const statuses = checkToolRequirements([{ id: descriptor.id }], {
@@ -1220,6 +1306,7 @@ export async function installReverseItem(
 			const found = probeCliBinary(desc, which, options.env ?? process.env, platform, {
 				settings: options.settings,
 				cwd: options.cwd,
+				agentDir: options.agentDir,
 			});
 			if (found && path.isAbsolute(found)) {
 				prePaths.push(path.dirname(found));
@@ -1352,6 +1439,147 @@ export async function installReverseItem(
 				return {
 					success: true,
 					message: liefRes.message,
+				};
+			}
+			if (step.installer === "kaitai-struct-compiler" || step.id === "kaitai-struct-compiler") {
+				if (
+					!isTrustedCatalogArgv(canonical, {
+						settings: options.settings,
+						cwd: options.cwd,
+						env: options.env,
+					})
+				) {
+					return {
+						success: false,
+						message: `Untrusted installation command for ${step.name}: argv does not match catalog definition.`,
+					};
+				}
+				options.onChunk?.(`[reverse] Installing Kaitai Struct Compiler (ksc)...\n`);
+				const kscRes = await installKaitaiCompiler({
+					agentDir: options.agentDir,
+					onChunk: options.onChunk,
+					signal: options.signal,
+					platform,
+					env: options.env,
+					fetch: options.fetch,
+					which: (bin, opts) => which(bin, opts ?? { cache: WhichCachePolicy.Bypass }),
+				});
+				if (!kscRes.success || !kscRes.executablePath) {
+					return {
+						success: false,
+						message: kscRes.error ?? kscRes.message ?? "kaitai-struct-compiler installation failed.",
+					};
+				}
+				const binDir = path.dirname(kscRes.executablePath);
+				const resolvedJavaBin = resolveJavaForKaitai({
+					env: options.env,
+					platform,
+					which: (bin, opts) => which(bin, opts ?? { cache: WhichCachePolicy.Bypass }),
+				});
+				const javaHome = resolvedJavaBin ? (resolveJavaHomeFromBinary(resolvedJavaBin) ?? undefined) : undefined;
+				await persistToolEnvironment(
+					{
+						javaHome,
+						extraPaths: [binDir],
+					},
+					options.agentDir,
+				);
+				if (step.isDependency) {
+					continue;
+				}
+				return {
+					success: true,
+					message: kscRes.message,
+				};
+			}
+			if (step.installer === "kaitaistruct" || step.id === "kaitaistruct") {
+				if (
+					!isTrustedCatalogArgv(canonical, {
+						settings: options.settings,
+						cwd: options.cwd,
+						env: options.env,
+					})
+				) {
+					return {
+						success: false,
+						message: `Untrusted installation command for ${step.name}: argv does not match catalog definition.`,
+					};
+				}
+				options.onChunk?.(`[reverse] Installing managed kaitaistruct Python runtime environment...\n`);
+				const ksRes = await installKaitaiStructVenv({
+					agentDir: options.agentDir,
+					onChunk: options.onChunk,
+					signal: options.signal,
+					platform,
+					env: options.env,
+					executor: options.executor
+						? (argv, execOpts) => options.executor!(argv, { onChunk: execOpts?.onChunk })
+						: undefined,
+					which: (bin, opts) => which(bin, opts ?? { cache: WhichCachePolicy.Bypass }),
+				});
+				if (!ksRes.success || !ksRes.pythonPath) {
+					return {
+						success: false,
+						message: ksRes.error ?? ksRes.message ?? "kaitaistruct installation failed.",
+					};
+				}
+				const venvBinDir = path.dirname(ksRes.pythonPath);
+				await persistToolEnvironment(
+					{
+						extraPaths: [venvBinDir],
+					},
+					options.agentDir,
+				);
+				if (step.isDependency) {
+					continue;
+				}
+				return {
+					success: true,
+					message: ksRes.message,
+				};
+			}
+			if (step.installer === "capa" || step.id === "capa") {
+				if (
+					!isTrustedCatalogArgv(canonical, {
+						settings: options.settings,
+						cwd: options.cwd,
+						env: options.env,
+					})
+				) {
+					return {
+						success: false,
+						message: `Untrusted installation command for ${step.name}: argv does not match catalog definition.`,
+					};
+				}
+				options.onChunk?.(`[reverse] Installing Mandiant capa engine and official capa-rules...\n`);
+				const capaRes = await installCapa({
+					agentDir: options.agentDir,
+					onChunk: options.onChunk,
+					signal: options.signal,
+					platform,
+					env: options.env,
+					fetch: options.fetch,
+					which: (bin, opts) => which(bin, opts ?? { cache: WhichCachePolicy.Bypass }),
+				});
+				if (!capaRes.success || !capaRes.executablePath) {
+					return {
+						success: false,
+						message: capaRes.error ?? capaRes.message ?? "capa installation failed.",
+					};
+				}
+				const binDir = path.dirname(capaRes.executablePath);
+				await persistToolEnvironment(
+					{
+						extraPaths: [binDir],
+					},
+					options.agentDir,
+				);
+				if (step.isDependency) {
+					continue;
+				}
+				return {
+					success: true,
+					message: capaRes.message,
 				};
 			}
 
@@ -1915,6 +2143,7 @@ export async function installReverseItem(
 		const finalPath = probeCliBinary(desc, which, finalReprobeEnv, platform, {
 			settings: options.settings,
 			cwd: options.cwd,
+			agentDir: options.agentDir,
 		});
 		if (!finalPath) {
 			return {
@@ -1947,6 +2176,7 @@ export async function installReverseItem(
 				const secPath = probeCliBinary(sDesc, which, options.env ?? process.env, platform, {
 					settings: options.settings,
 					cwd: options.cwd,
+					agentDir: options.agentDir,
 				});
 				if (secPath) {
 					extraPaths.push(path.dirname(secPath));

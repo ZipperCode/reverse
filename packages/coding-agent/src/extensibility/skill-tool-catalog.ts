@@ -48,6 +48,76 @@ export {
 	isProtectionToolId,
 };
 import {
+	probeKaitaiCompilerRequirement,
+	resolveKaitaiCompiler,
+	installKaitaiCompiler,
+	probeKaitaiStructRequirement,
+	resolveKaitaiStructPython,
+	resolveKaitaiStructPythonDetailed,
+	probePythonForKaitaiStruct,
+	probePythonForKaitaiStructDetailed,
+	installKaitaiStructVenv,
+	computeKaitaiStructReadinessFingerprint,
+	resolveKaitaiToolchainReadiness,
+	checkKaitaiVersionCompatibility,
+	probeCapaRequirement,
+	resolveCapa,
+	validateCapaRulesDir,
+	computeCapaRulesManifest,
+	installCapa,
+	resolveMitmproxy,
+	evaluateProtocolToolActionDependencies,
+	KAITAI_COMPILER_VERSION,
+	KAITAISTRUCT_VERSION,
+	KAITAISTRUCT_PYPI_PACKAGE,
+	CAPA_VERSION,
+	CAPA_RULES_VERSION,
+	type KaitaiCompilerProbeResult,
+	type KaitaiStructProbeResult,
+	type KaitaiStructDetailedProbeResult,
+	type KaitaiToolchainReadiness,
+	type CapaProbeResult,
+	type CapaRulesManifest,
+	type MitmproxyResolveResult,
+	type ProtocolActionDependencyQuery,
+	type ProtocolActionDependencyResult,
+} from "./protocol-toolchain";
+export {
+	probeKaitaiCompilerRequirement,
+	resolveKaitaiCompiler,
+	installKaitaiCompiler,
+	probeKaitaiStructRequirement,
+	resolveKaitaiStructPython,
+	resolveKaitaiStructPythonDetailed,
+	probePythonForKaitaiStruct,
+	probePythonForKaitaiStructDetailed,
+	installKaitaiStructVenv,
+	computeKaitaiStructReadinessFingerprint,
+	resolveKaitaiToolchainReadiness,
+	checkKaitaiVersionCompatibility,
+	probeCapaRequirement,
+	resolveCapa,
+	validateCapaRulesDir,
+	computeCapaRulesManifest,
+	installCapa,
+	resolveMitmproxy,
+	evaluateProtocolToolActionDependencies,
+	KAITAI_COMPILER_VERSION,
+	KAITAISTRUCT_VERSION,
+	KAITAISTRUCT_PYPI_PACKAGE,
+	CAPA_VERSION,
+	CAPA_RULES_VERSION,
+	type KaitaiCompilerProbeResult,
+	type KaitaiStructProbeResult,
+	type KaitaiStructDetailedProbeResult,
+	type KaitaiToolchainReadiness,
+	type CapaProbeResult,
+	type CapaRulesManifest,
+	type MitmproxyResolveResult,
+	type ProtocolActionDependencyQuery,
+	type ProtocolActionDependencyResult,
+};
+import {
 	evaluateUnidbgReadiness,
 	evaluateApkUnpackingReadiness,
 	type UnidbgReadiness,
@@ -2439,11 +2509,12 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 		usage: {
 			canonical: "mitmdump -p 8080 -w flows.mitm",
 			whenToUse:
-				"Capture and replay authorized HTTP(S) traffic to recover API schemas, signatures, and TLS pinning behavior; use mitmproxy interactively for breakpoints.",
+				'Capture authorized HTTP(S) traffic to .mitm flow files for app_experiment(action: "network_import", capture_format: "mitm"), or inspect breakpoints interactively; HAR import and offline network_compare do not require mitmproxy.',
 			prerequisites: ["mitmproxy"],
 			outputLimits:
-				"Write flows to disk; filter with --flow-filter or scripts instead of printing every request into context.",
-			fallback: "curl/fetch against authorized endpoints plus HAR or browser DevTools captures.",
+				'Write flows to disk; filter with --flow-filter or import targeted entries with app_experiment(action: "network_import") instead of printing every request into context.',
+			fallback:
+				'app_experiment(action: "network_import", capture_format: "har") with browser HAR captures, or curl/fetch against authorized endpoints.',
 			examples: [
 				{
 					description: "Capture all traffic to a flow file behind a local listener",
@@ -3767,6 +3838,218 @@ export const SKILL_TOOL_CATALOG: Readonly<Record<string, SkillToolDescriptor>> =
 			],
 		},
 	},
+	"kaitai-struct-compiler": {
+		id: "kaitai-struct-compiler",
+		name: "Kaitai Struct Compiler (ksc)",
+		category: "binary",
+		description:
+			"Official Kaitai Struct JVM compiler (ksc) for compiling declarative .ksy binary and protocol format schemas into Python parsers with field byte offsets (--read-pos).",
+		optional: true,
+		binaries: [],
+		secondary: ["java"],
+		envPaths: [{ env: "KAITAI_STRUCT_COMPILER" }, { env: "KSC_PATH" }],
+		probe: deps => probeKaitaiCompilerRequirement(deps),
+		installHints: {
+			darwin: ["reverse setup reverse kaitai-struct-compiler --execute", "brew install kaitai-struct-compiler"],
+			linux: ["reverse setup reverse kaitai-struct-compiler --execute"],
+			win32: ["reverse setup reverse kaitai-struct-compiler --execute"],
+		},
+		manualUrl: "https://kaitai.io/#download",
+		manualInstructions: {
+			darwin:
+				"Install pinned Kaitai Struct Compiler (v0.11, GPL-3.0-or-later) via 'reverse setup reverse kaitai-struct-compiler --execute' or 'brew install kaitai-struct-compiler'. Requires a Java runtime (JRE/JDK).",
+			linux: "Install pinned Kaitai Struct Compiler (v0.11, GPL-3.0-or-later) via 'reverse setup reverse kaitai-struct-compiler --execute' or download the universal release from https://github.com/kaitai-io/kaitai_struct_compiler/releases. Requires a Java runtime (JRE/JDK).",
+			win32: "Install pinned Kaitai Struct Compiler (v0.11, GPL-3.0-or-later) via 'reverse setup reverse kaitai-struct-compiler --execute' or download the universal release from https://github.com/kaitai-io/kaitai_struct_compiler/releases. Requires a Java runtime (JRE/JDK).",
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse kaitai-struct-compiler --execute",
+					argv: ["reverse", "setup", "reverse", "kaitai-struct-compiler", "--execute"],
+					riskNote:
+						"Downloads and installs pinned Kaitai Struct Compiler v0.11 universal distribution (GPL-3.0-or-later) into the agent tools directory.",
+				},
+			],
+			linux: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse kaitai-struct-compiler --execute",
+					argv: ["reverse", "setup", "reverse", "kaitai-struct-compiler", "--execute"],
+					riskNote:
+						"Downloads and installs pinned Kaitai Struct Compiler v0.11 universal distribution (GPL-3.0-or-later) into the agent tools directory.",
+				},
+			],
+			win32: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse kaitai-struct-compiler --execute",
+					argv: ["reverse", "setup", "reverse", "kaitai-struct-compiler", "--execute"],
+					riskNote:
+						"Downloads and installs pinned Kaitai Struct Compiler v0.11 universal distribution (GPL-3.0-or-later) into the agent tools directory.",
+				},
+			],
+		},
+		usage: {
+			canonical:
+				'format_inspect(action: "compile", schema_path: "<protocol.ksy>") -> format_inspect(action: "parse", schema_path: "<protocol.ksy>", sample_path: "<packet.bin>")',
+			whenToUse:
+				"Compile declarative Kaitai Struct (.ksy) specifications with --read-pos into Python parsers for custom binary protocols and file containers.",
+			prerequisites: ["java", "kaitai-struct-compiler"],
+			outputLimits:
+				"Accepts local vetted .ksy schemas and explicit local import roots; rejects remote imports and custom opaque processors.",
+			fallback: "triage, binary_diff, or bounded Python struct unpacking scripts.",
+			examples: [
+				{
+					description: "Compile a .ksy protocol specification and inspect generated parser manifest",
+					command: 'format_inspect(action: "compile", schema_path: "packet.ksy")',
+				},
+				{
+					description: "Check Kaitai compiler, runtime, and version compatibility status",
+					command: 'format_inspect(action: "status")',
+				},
+			],
+		},
+	},
+	kaitaistruct: {
+		id: "kaitaistruct",
+		name: "Kaitai Struct Python Runtime (kaitaistruct)",
+		category: "binary",
+		description:
+			"Python runtime library (kaitaistruct) required to execute compiled Kaitai Struct parsers and extract stream-relative field byte offsets.",
+		optional: true,
+		binaries: [],
+		secondary: ["python"],
+		probe: deps => probeKaitaiStructRequirement(deps),
+		installHints: {
+			darwin: ["reverse setup reverse kaitaistruct --execute"],
+			linux: ["reverse setup reverse kaitaistruct --execute"],
+			win32: ["reverse setup reverse kaitaistruct --execute"],
+		},
+		manualUrl: "https://github.com/kaitai-io/kaitai_struct_python_runtime",
+		manualInstructions: {
+			darwin:
+				"Install pinned kaitaistruct (0.11, MIT) into an isolated virtual environment via 'reverse setup reverse kaitaistruct --execute'.",
+			linux: "Install pinned kaitaistruct (0.11, MIT) into an isolated virtual environment via 'reverse setup reverse kaitaistruct --execute'.",
+			win32: "Install pinned kaitaistruct (0.11, MIT) into an isolated virtual environment via 'reverse setup reverse kaitaistruct --execute'.",
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "pip",
+					command: "reverse setup reverse kaitaistruct (managed venv)",
+					argv: ["reverse", "setup", "reverse", "kaitaistruct", "--execute"],
+					riskNote:
+						"Provisions an isolated virtual environment in the agent directory and installs pinned kaitaistruct (0.11, MIT).",
+				},
+			],
+			linux: [
+				{
+					manager: "pip",
+					command: "reverse setup reverse kaitaistruct (managed venv)",
+					argv: ["reverse", "setup", "reverse", "kaitaistruct", "--execute"],
+					riskNote:
+						"Provisions an isolated virtual environment in the agent directory and installs pinned kaitaistruct (0.11, MIT).",
+				},
+			],
+			win32: [
+				{
+					manager: "pip",
+					command: "reverse setup reverse kaitaistruct (managed venv)",
+					argv: ["reverse", "setup", "reverse", "kaitaistruct", "--execute"],
+					riskNote:
+						"Provisions an isolated virtual environment in the agent directory and installs pinned kaitaistruct (0.11, MIT).",
+				},
+			],
+		},
+		usage: {
+			canonical: 'format_inspect(action: "parse", schema_path: "<protocol.ksy>", sample_path: "<sample.bin>")',
+			whenToUse:
+				"Run compiled Kaitai Struct Python parsers inside an isolated worker to parse binary samples and validate field assertions across sample corpora.",
+			prerequisites: ["python", "kaitaistruct"],
+			outputLimits:
+				"Bounded input size, field count, expansion depth, and execution time enforced by format_inspect.",
+			fallback: "Python standard library struct / io.BytesIO inspection.",
+			examples: [
+				{
+					description: "Parse a binary payload using a compiled Kaitai Struct schema",
+					command: 'format_inspect(action: "parse", schema_path: "packet.ksy", sample_path: "sample.bin")',
+				},
+			],
+		},
+	},
+	capa: {
+		id: "capa",
+		name: "capa (Mandiant Capability Detector)",
+		category: "binary",
+		description:
+			"Mandiant capa executable capability detection engine and official rule set for identifying explainable host, network, and cryptographic behaviors in PE, ELF, and .NET binaries.",
+		optional: true,
+		binaries: [],
+		envPaths: [{ env: "CAPA_PATH" }, { env: "CAPA_BIN" }],
+		probe: deps => probeCapaRequirement(deps),
+		installHints: {
+			darwin: ["reverse setup reverse capa --execute"],
+			linux: ["reverse setup reverse capa --execute"],
+			win32: ["reverse setup reverse capa --execute"],
+		},
+		manualUrl: "https://github.com/mandiant/capa",
+		manualInstructions: {
+			darwin:
+				"Install pinned capa engine (v10.0.0, Apache-2.0) and official capa-rules via 'reverse setup reverse capa --execute', or download from https://github.com/mandiant/capa/releases and set CAPA_RULES_PATH.",
+			linux: "Install pinned capa engine (v10.0.0, Apache-2.0) and official capa-rules via 'reverse setup reverse capa --execute', or download from https://github.com/mandiant/capa/releases and set CAPA_RULES_PATH.",
+			win32: "Install pinned capa engine (v10.0.0, Apache-2.0) and official capa-rules via 'reverse setup reverse capa --execute', or download from https://github.com/mandiant/capa/releases and set CAPA_RULES_PATH.",
+		},
+		installCommands: {
+			darwin: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse capa --execute",
+					argv: ["reverse", "setup", "reverse", "capa", "--execute"],
+					riskNote:
+						"Provisions pinned Mandiant capa v10.0.0 engine and official capa-rules v10.0.0 (Apache-2.0) into the agent tools directory.",
+				},
+			],
+			linux: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse capa --execute",
+					argv: ["reverse", "setup", "reverse", "capa", "--execute"],
+					riskNote:
+						"Provisions pinned Mandiant capa v10.0.0 engine and official capa-rules v10.0.0 (Apache-2.0) into the agent tools directory.",
+				},
+			],
+			win32: [
+				{
+					manager: "managed",
+					command: "reverse setup reverse capa --execute",
+					argv: ["reverse", "setup", "reverse", "capa", "--execute"],
+					riskNote:
+						"Provisions pinned Mandiant capa v10.0.0 engine and official capa-rules v10.0.0 (Apache-2.0) into the agent tools directory.",
+				},
+			],
+		},
+		usage: {
+			canonical: 'capability_inspect(action: "detect", backend: "capa", path: "<sample.exe_or_elf>")',
+			whenToUse:
+				"Detect explainable capabilities (cryptography, networking, anti-analysis, persistence, host interaction) in PE, ELF, or .NET binaries with full rule match trees and feature locations; offline JSON report import does not require capa.",
+			prerequisites: ["capa"],
+			outputLimits:
+				"Static capa detections yield candidate evidence (static_candidate) and require subsequent dynamic verification to prove runtime execution.",
+			fallback:
+				'capability_inspect(action: "import", backend: "capa", report_path: "<report.json>") for existing capa JSON reports, or triage / binary_metadata_inspect / ghidra_inspect(action: "findcrypt").',
+			examples: [
+				{
+					description: "Run static capa capability detection on an ELF or PE binary",
+					command: 'capability_inspect(action: "detect", backend: "capa", path: "sample.bin")',
+				},
+				{
+					description: "Import an existing capa JSON report offline without requiring the capa binary",
+					command: 'capability_inspect(action: "import", backend: "capa", report_path: "capa-report.json")',
+				},
+			],
+		},
+	},
 };
 
 /** All tools catalogued for the reverse engineering toolchain. */
@@ -3844,7 +4127,7 @@ export function probePythonTool(deps?: ProbePythonOptions): string | null {
 			const res = child_process.spawnSync(
 				candidate,
 				["-c", "import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)"],
-				{ timeout: 1500, windowsHide: true },
+				{ timeout: 4000, windowsHide: true },
 			);
 			if (res.status === 0) {
 				return candidate;
@@ -4249,6 +4532,40 @@ export const CAPABILITY_CATALOG: Readonly<Record<string, CapabilityDescriptor>> 
 		setupCommand: "reverse setup reverse triton --execute",
 		postInstallInvocation:
 			'native_recover(action: "status"), then native_recover(action: "explore", snapshot: <BoundedSnapshot>) (see docs/tools/native_recover.md)',
+	},
+	protocol_format_parsing: {
+		id: "protocol_format_parsing",
+		name: "Executable Binary & Protocol Format Parsing (Kaitai Struct)",
+		category: "binary",
+		scenario:
+			"Compile declarative Kaitai Struct (.ksy) specifications and parse custom binary protocols or file containers with exact stream-relative field byte offsets.",
+		description:
+			"Validates and compiles .ksy schemas with kaitai-struct-compiler (--read-pos) into Python parsers, executes bounded parsing via the kaitaistruct runtime, and checks explicit field assertions across positive and negative sample corpora.",
+		why: "Replaces error-prone manual offset arithmetic with an executable format specification that records exact 0-based start/end positions, stream hierarchy, and trailing bytes for every parsed field.",
+		recommendedNativeTool: "format_inspect",
+		optionalExternalTools: ["kaitai-struct-compiler", "kaitaistruct"],
+		prerequisites: ["java", "python"],
+		fallbacks: ["triage", "binary_diff", "pcap_inspect", "strings"],
+		setupCommand: "reverse setup reverse kaitai-struct-compiler --execute",
+		postInstallInvocation:
+			'format_inspect(action: "status") or format_inspect(action: "compile", schema_path: "<schema.ksy>", workflow_id: "<workflow>", step_id: "<step>", run_id: "<run>") -> format_inspect(action: "parse", manifest_path: "<generated-manifest.json>", sample_path: "<sample.bin>", workflow_id: "<workflow>", step_id: "<step>", run_id: "<run>")',
+	},
+	executable_capability_identification: {
+		id: "executable_capability_identification",
+		name: "Explainable Executable Capability Identification (capa)",
+		category: "binary",
+		scenario:
+			"Identify explainable behavioral capabilities, cryptographic routines, networking, and anti-analysis features in PE, ELF, and .NET binaries using Mandiant capa rules.",
+		description:
+			"Runs local capa static analysis with verified rule sets or imports existing capa JSON reports offline, preserving full rule match trees (and/or/not/optional), feature addresses, rule hashes, and static candidate evidence links.",
+		why: "Connects low-level instruction, import, string, and byte features to explainable capability hypotheses with exact locations, guiding targeted decompilation and dynamic verification.",
+		recommendedNativeTool: "capability_inspect",
+		optionalExternalTools: ["capa"],
+		prerequisites: ["capa"],
+		fallbacks: ["triage", "binary_metadata_inspect", "ghidra_inspect", "strings"],
+		setupCommand: "reverse setup reverse capa --execute",
+		postInstallInvocation:
+			'capability_inspect(action: "status", backend: "capa") or capability_inspect(action: "detect", backend: "capa", path: "<sample>") or capability_inspect(action: "import", backend: "capa", report_path: "<capa_report.json>")',
 	},
 };
 
@@ -4845,6 +5162,52 @@ export function resolveReverseCapabilities(options: ResolveCapabilitiesOptions =
 			const hasEngine = toolRefs.some(t => t.id === "triton" && (t.status === "installed" || t.status === "ready"));
 			isReady = hasEngine;
 			status = isReady ? "ready" : availableFallbacks.length > 0 ? "available_with_fallbacks" : "missing";
+		} else if (cap.id === "protocol_format_parsing") {
+			const compilerInstalled = toolMap["kaitai-struct-compiler"]?.status === "installed";
+			const runtimeInstalled = toolMap["kaitaistruct"]?.status === "installed";
+			const javaExplicitlyMissing = toolMap["java"]?.status === "missing";
+			const pythonExplicitlyMissing = toolMap["python"]?.status === "missing";
+			const compilerReady = compilerInstalled && !javaExplicitlyMissing;
+			const runtimeReadyFlag = runtimeInstalled && !pythonExplicitlyMissing;
+			isReady = compilerReady && runtimeReadyFlag;
+			compatible = isReady;
+			canStart = true;
+
+			if (!isReady) {
+				const missing: string[] = [];
+				if (javaExplicitlyMissing) missing.push("java");
+				if (!compilerInstalled) missing.push("kaitai-struct-compiler");
+				if (pythonExplicitlyMissing) missing.push("python");
+				if (!runtimeInstalled) missing.push("kaitaistruct");
+				blockedRequirements = missing;
+				if (javaExplicitlyMissing) {
+					setupCommand = "reverse setup reverse java";
+				} else if (!compilerInstalled) {
+					setupCommand = "reverse setup reverse kaitai-struct-compiler --execute";
+				} else if (pythonExplicitlyMissing) {
+					setupCommand = "reverse setup reverse python";
+				} else {
+					setupCommand = "reverse setup reverse kaitaistruct --execute";
+				}
+			}
+			status = isReady
+				? "ready"
+				: compilerReady || runtimeReadyFlag || availableFallbacks.length > 0 || Boolean(cap.recommendedNativeTool)
+					? "available_with_fallbacks"
+					: "missing";
+		} else if (cap.id === "executable_capability_identification") {
+			const capaReady = toolMap["capa"]?.status === "installed";
+			isReady = capaReady;
+			canStart = true;
+			if (!capaReady) {
+				blockedRequirements = ["capa"];
+				setupCommand = "reverse setup reverse capa --execute";
+			}
+			status = isReady
+				? "ready"
+				: availableFallbacks.length > 0 || Boolean(cap.recommendedNativeTool)
+					? "available_with_fallbacks"
+					: "missing";
 		} else {
 			isReady = hasInstalledTool;
 			if (isReady) {

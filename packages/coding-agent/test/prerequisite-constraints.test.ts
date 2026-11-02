@@ -359,6 +359,65 @@ describe("Explicit handoff prerequisite constraints (#17)", () => {
 		}
 	});
 
+	it("keeps offline protocol actions reachable when optional engines are missing", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "prereq-protocol-actions-"));
+		try {
+			const document = [
+				"- Do not repeat `format_inspect` until kaitai-struct-compiler is installed.",
+				"- Do not repeat `format_inspect` until kaitaistruct is installed.",
+				"- Do not repeat `capability_inspect` until capa is installed.",
+				"- Do not repeat `app_experiment` until mitmproxy is installed.",
+			].join("\n");
+			const artifactsDir = path.join(tempDir, "artifacts");
+			const handoffFile = await writeHandoffDocument(artifactsDir, { document });
+			const host = createHost({
+				cwd: tempDir,
+				artifactsDir,
+				branch: [
+					handoffCompactionEntry({
+						id: "protocol-dependencies",
+						summary: document,
+						details: { [HANDOFF_DOCUMENT_DETAILS_KEY]: handoffFile },
+					}),
+				],
+			});
+			const gate = getSessionPrerequisiteConstraintGate(host, {
+				probeDependency: async () => ({ status: "missing" }),
+			});
+			for (const toolName of ["format_inspect", "capability_inspect", "app_experiment"]) {
+				expect(await gate.check({ toolName, args: { action: "status" } })).toBeUndefined();
+			}
+			expect(await gate.check({ toolName: "capability_inspect", args: { action: "import" } })).toBeUndefined();
+			for (const action of ["network_replay", "network_compare"]) {
+				expect(await gate.check({ toolName: "app_experiment", args: { action } })).toBeUndefined();
+			}
+			expect(
+				await gate.check({ toolName: "app_experiment", args: { action: "network_import", capture_format: "har" } }),
+			).toBeUndefined();
+			expect(
+				(
+					await gate.check({
+						toolName: "app_experiment",
+						args: { action: "network_import", capture_format: "mitm" },
+					})
+				)?.missingDependency,
+			).toBe("mitmproxy");
+			expect(
+				(await gate.check({ toolName: "format_inspect", args: { action: "compile" } }))?.missingDependency,
+			).toBe("kaitai-struct-compiler");
+			for (const action of ["parse", "validate"]) {
+				expect((await gate.check({ toolName: "format_inspect", args: { action } }))?.missingDependency).toBe(
+					"kaitai-struct-compiler",
+				);
+			}
+			expect(
+				(await gate.check({ toolName: "capability_inspect", args: { action: "detect" } }))?.missingDependency,
+			).toBe("capa");
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
 	it("keeps quoted, fenced, example, prose, over-long and retracted directives inactive", () => {
 		const text = [
 			"# Handoff",

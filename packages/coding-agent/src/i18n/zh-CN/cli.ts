@@ -390,6 +390,47 @@ export const CLI_TRANSLATIONS_ZH_CN: Record<string, string> = {
 		"直接利用受管 Triton 与 Z3 对有界机器快照探索执行路径并求解分支约束，计算满足目标跳转的合法输入。",
 	"cli.setup.reverse.capability.native_path_recovery.why":
 		"求解绕过安全校验或进入关键业务分支所需的具体数值，无需盲目穷举测试。",
+	"cli.setup.reverse.kaitai-struct-compiler.name": "Kaitai Struct 编译器 (ksc)",
+	"cli.setup.reverse.kaitaistruct.name": "Kaitai Struct Python 运行时",
+	"cli.setup.reverse.capa.name": "capa 可执行能力识别器",
+	"cli.setup.reverse.tool.kaitai-struct-compiler.description":
+		"官方 Kaitai Struct JVM 编译器（ksc），将声明式 .ksy 二进制与协议规范编译为带精确字段偏移（--read-pos）的 Python 解析器。",
+	"cli.setup.reverse.tool.kaitai-struct-compiler.purpose":
+		"将协议字段假设转化为可执行的解析器代码，精确提取字节流中的字段起止偏移与嵌套流结构。",
+	"cli.setup.reverse.kaitai-struct-compiler.risk":
+		"下载并部署固定版本 Kaitai Struct Compiler v0.11 通用发行包（GPL-3.0-or-later，外部独立工具）至 agent 工具目录；运行依赖本地 Java 环境。",
+	"cli.setup.reverse.kaitai-struct-compiler.manual":
+		"运行 'reverse setup reverse kaitai-struct-compiler --execute' 安装固定版本编译器至 agent 工具目录，或通过 'brew install kaitai-struct-compiler' 安装；须具备可用的 Java 运行环境。",
+	"cli.setup.reverse.tool.kaitaistruct.description":
+		"运行 Kaitai Struct 编译后 Python 解析器所需的运行时库（kaitaistruct），提供字节流定位与字段解析接口。",
+	"cli.setup.reverse.tool.kaitaistruct.purpose":
+		"在受管或选定的隔离 Python 环境中解析自定义协议报文与二进制样本，校验多样本与反例断言。",
+	"cli.setup.reverse.kaitaistruct.risk":
+		"在 agent 目录创建隔离虚拟环境并安装固定版本 kaitaistruct (0.11, MIT)，不修改系统全局 Python。",
+	"cli.setup.reverse.kaitaistruct.manual":
+		"运行 'reverse setup reverse kaitaistruct --execute' 在受管虚拟环境中安装固定版本 kaitaistruct (0.11, MIT)。",
+	"cli.setup.reverse.tool.capa.description":
+		"Mandiant capa 可执行能力识别引擎与官方规则集，识别 PE、ELF 与 .NET 二进制中的密码学、网络、反分析及宿主交互行为。",
+	"cli.setup.reverse.tool.capa.purpose":
+		"输出带规则逻辑树（and/or/not/optional）与特征地址的可解释静态能力候选；离线导入已有 capa JSON 报告无需安装引擎。",
+	"cli.setup.reverse.capa.risk":
+		"下载并部署固定版本 Mandiant capa v10.0.0 引擎与官方 capa-rules v10.0.0 规则库（Apache-2.0）至 agent 工具目录。",
+	"cli.setup.reverse.capa.manual":
+		"运行 'reverse setup reverse capa --execute' 安装固定版本 capa 引擎与官方规则库，或手动下载发行包并设置 CAPA_RULES_PATH。",
+	"cli.setup.reverse.capability.protocol_format_parsing.name": "可执行二进制与协议格式解析 (Kaitai Struct)",
+	"cli.setup.reverse.capability.protocol_format_parsing.scenario":
+		"编译声明式 Kaitai Struct (.ksy) 协议规范，并以精确字节流偏移解析自定义二进制报文或文件容器。",
+	"cli.setup.reverse.capability.protocol_format_parsing.description":
+		"利用 kaitai-struct-compiler (--read-pos) 编译 .ksy 规范并在隔离 kaitaistruct 运行时中执行有界解析，对正负样本语料校验显式字段断言。",
+	"cli.setup.reverse.capability.protocol_format_parsing.why":
+		"用可复现的可执行格式规范替代手工偏移推算，完整记录每个字段的 0 基起止位置、子流层级与尾部残留字节。",
+	"cli.setup.reverse.capability.executable_capability_identification.name": "可解释可执行能力识别 (capa)",
+	"cli.setup.reverse.capability.executable_capability_identification.scenario":
+		"利用 Mandiant capa 规则识别 PE、ELF 与 .NET 样本中的密码学算法、网络通信、反分析与宿主行为特征。",
+	"cli.setup.reverse.capability.executable_capability_identification.description":
+		"使用已校验规则库执行本地 capa 静态检测或离线导入既有 capa JSON 报告，保留完整匹配树、特征地址、规则哈希与静态候选证据关联。",
+	"cli.setup.reverse.capability.executable_capability_identification.why":
+		"将底层指令、导入、字符串与字节特征映射为带精确定位的可解释能力假设，引导后续针对性反编译与动态验证。",
 	"cli.setup.menu.title": "系统与工具链配置 (Setup)",
 	"cli.setup.panel.providers.label": "模型服务商 (providers)",
 	"cli.setup.panel.providers.desc": "配置 OAuth 登录、API Key 及 Web 搜索服务",

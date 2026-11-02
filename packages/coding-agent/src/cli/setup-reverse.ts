@@ -377,10 +377,17 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 		optional: desc.optional ?? true,
 	}));
 	const effectiveSettings = deps.settings ?? (isSettingsInitialized() ? settings : getCachedReadOnlySettings());
+	const isSyntheticWhich = deps.which !== undefined && deps.which !== $which;
+	const toolProbeEnv = deps.agentDir
+		? {
+				...(deps.env ?? (isSyntheticWhich ? {} : process.env)),
+				REVERSE_CODING_AGENT_DIR: deps.agentDir,
+			}
+		: deps.env;
 	const statuses = checkToolRequirements(toolRequirements, {
 		platform: requestedPlatform,
 		which,
-		env: deps.env,
+		env: toolProbeEnv,
 		settings: effectiveSettings,
 		cwd: deps.cwd,
 	});
@@ -461,6 +468,36 @@ export function checkReverseTools(deps: ReverseSetupDeps = {}): ReverseCheckRepo
 					riskNote: t(
 						"cli.setup.reverse.ghidra-findcrypt.risk",
 						"Compiles Ghidra FindCrypt extension from upstream source (TorgoTorgo/ghidra-findcrypt commit 5c2fd5b, GPL-3.0) against target Ghidra and installs it into Ghidra Extensions.",
+					),
+				};
+			} else if (desc.id === "kaitai-struct-compiler") {
+				chosenCmd = {
+					manager: "managed",
+					command: `${APP_NAME} setup reverse kaitai-struct-compiler --execute`,
+					argv: [APP_NAME, "setup", "reverse", "kaitai-struct-compiler", "--execute"],
+					riskNote: t(
+						"cli.setup.reverse.kaitai-struct-compiler.risk",
+						"Downloads and installs pinned Kaitai Struct Compiler v0.11 universal distribution (GPL-3.0-or-later) into the agent tools directory.",
+					),
+				};
+			} else if (desc.id === "kaitaistruct") {
+				chosenCmd = {
+					manager: "pip",
+					command: `${APP_NAME} setup reverse kaitaistruct (managed venv)`,
+					argv: [APP_NAME, "setup", "reverse", "kaitaistruct", "--execute"],
+					riskNote: t(
+						"cli.setup.reverse.kaitaistruct.risk",
+						"Provisions an isolated virtual environment in the agent directory and installs pinned kaitaistruct (0.11, MIT).",
+					),
+				};
+			} else if (desc.id === "capa") {
+				chosenCmd = {
+					manager: "managed",
+					command: `${APP_NAME} setup reverse capa --execute`,
+					argv: [APP_NAME, "setup", "reverse", "capa", "--execute"],
+					riskNote: t(
+						"cli.setup.reverse.capa.risk",
+						"Provisions pinned Mandiant capa v10.0.0 engine and official capa-rules v10.0.0 (Apache-2.0) into the agent tools directory.",
 					),
 				};
 			} else if (
@@ -804,6 +841,9 @@ export function isTrustedCatalogArgv(
 			(item.id === "lief" ||
 				item.id === "sofixer" ||
 				item.id === "ghidra-findcrypt" ||
+				item.id === "kaitai-struct-compiler" ||
+				item.id === "kaitaistruct" ||
+				item.id === "capa" ||
 				item.id === "blutter" ||
 				item.id === "hbctool" ||
 				item.id === "hermes-dec" ||

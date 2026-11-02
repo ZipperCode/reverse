@@ -2,13 +2,20 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, expect, it, vi } from "bun:test";
-import { checkReverseTools, detectPackageManagers, handleReverseSetup } from "../src/cli/setup-reverse";
 import {
+	checkReverseTools,
+	detectPackageManagers,
+	handleReverseSetup,
+	isTrustedCatalogArgv,
+} from "../src/cli/setup-reverse";
+import {
+	getReverseCapability,
 	getReverseTool,
 	getReverseTools,
 	SKILL_TOOL_CATALOG,
 	resolveReverseCapabilities,
 } from "../src/extensibility/skill-tool-catalog";
+import { canInstallReverseItem, getReverseInstallPlan } from "../src/extensibility/reverse-tool-install";
 import type { SkillRequirementWhich } from "../src/extensibility/skill-requirements";
 import { afterEach, beforeEach } from "bun:test";
 
@@ -989,5 +996,262 @@ describe("lief, sofixer, ghidra-findcrypt in catalog and capabilities", () => {
 		expect(repairFull?.status).toBe("ready");
 		expect(repairFull?.elfRepairStages?.offline.ready).toBe(true);
 		expect(repairFull?.elfRepairStages?.dump.ready).toBe(true);
+	});
+});
+
+describe("kaitai-struct-compiler, kaitaistruct, capa, and protocol/capability entries", () => {
+	let tempDir: string;
+	let isolatedAgentDir: string;
+	let fixtureBinDir: string;
+	let isolatedEnv: Record<string, string>;
+
+	beforeEach(async () => {
+		tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "setup-reverse-protocol-"));
+		isolatedAgentDir = path.join(tempDir, "empty-agent");
+		fixtureBinDir = path.join(tempDir, "bin");
+		await fs.promises.mkdir(isolatedAgentDir, { recursive: true });
+		await fs.promises.mkdir(fixtureBinDir, { recursive: true });
+
+		const javaFixture = path.join(fixtureBinDir, "java");
+		await fs.promises.writeFile(javaFixture, "#!/bin/sh\necho 'openjdk version \"21.0.2\"' >&2\nexit 0\n", {
+			mode: 0o755,
+		});
+		const pyFixture = path.join(fixtureBinDir, "python3");
+		await fs.promises.writeFile(
+			pyFixture,
+			[
+				"#!/bin/sh",
+				'for arg in "$@"; do',
+				'  case "$arg" in',
+				"    *KAITAI_MISSING_MODULE*) echo \"KAITAI_MISSING_MODULE:No module named 'kaitaistruct'\"; exit 42 ;;",
+				"  esac",
+				"done",
+				"exit 0",
+				"",
+			].join("\n"),
+			{ mode: 0o755 },
+		);
+		isolatedEnv = {
+			PATH: fixtureBinDir,
+			HOME: tempDir,
+			REVERSE_CODING_AGENT_DIR: isolatedAgentDir,
+		};
+	});
+
+	afterEach(async () => {
+		try {
+			await fs.promises.rm(tempDir, { recursive: true, force: true });
+		} catch {}
+	});
+
+	it("registers canonical kaitai-struct-compiler, kaitaistruct, and capa alongside reused mitmproxy", () => {
+		for (const id of ["kaitai-struct-compiler", "kaitaistruct", "capa", "mitmproxy"]) {
+			const tool = getReverseTool(id);
+			expect(tool).toBeDefined();
+			expect(tool?.id).toBe(id);
+			expect(tool?.optional).toBe(true);
+			expect(tool?.usage?.canonical).toBeDefined();
+			expect(tool?.usage?.whenToUse).toBeDefined();
+			expect(tool?.usage?.examples.length).toBeGreaterThan(0);
+		}
+		expect(getReverseTool("ksc")).toBeUndefined();
+		expect(SKILL_TOOL_CATALOG["kaitai-struct-compiler"].secondary).toContain("java");
+		expect(SKILL_TOOL_CATALOG.kaitaistruct.secondary).toContain("python");
+	});
+
+	it("exposes identical CLI and TUI check/install availability, enforces whitelist argv, and does not leak host agentDir", async () => {
+		const which = mockWhich({
+			strings: "/usr/bin/strings",
+			file: "/usr/bin/file",
+			brew: "/opt/homebrew/bin/brew",
+			java: path.join(fixtureBinDir, "java"),
+			python3: path.join(fixtureBinDir, "python3"),
+		});
+
+		const report = checkReverseTools({
+			platform: "darwin",
+			which,
+			agentDir: isolatedAgentDir,
+			env: isolatedEnv,
+		});
+		for (const id of ["kaitai-struct-compiler", "kaitaistruct", "capa"]) {
+			const item = report.tools.find(t => t.id === id);
+			expect(item).toBeDefined();
+			expect(item?.status).toBe("missing");
+			expect(item?.installArgv).toEqual(["reverse", "setup", "reverse", id, "--execute"]);
+			expect(isTrustedCatalogArgv(item!)).toBe(true);
+			expect(
+				canInstallReverseItem(item!, {
+					report,
+					which,
+					platform: "darwin",
+					agentDir: isolatedAgentDir,
+					env: isolatedEnv,
+				}),
+			).toBe(true);
+
+			const plan = getReverseInstallPlan(item!, {
+				report,
+				which,
+				platform: "darwin",
+				agentDir: isolatedAgentDir,
+				env: isolatedEnv,
+			});
+			expect(plan.canInstall).toBe(true);
+			expect(plan.steps.map(s => s.id)).toEqual([id]);
+
+			// Even when report is filtered by --tool (so report.tools omits java/python), plan must not add brew java/python
+			const filteredReport = checkReverseTools({
+				platform: "darwin",
+				which,
+				agentDir: isolatedAgentDir,
+				env: isolatedEnv,
+				filter: { tool: id },
+			});
+			const filteredItem = filteredReport.tools.find(t => t.id === id);
+			expect(filteredItem).toBeDefined();
+			const filteredPlan = getReverseInstallPlan(filteredItem!, {
+				report: filteredReport,
+				which,
+				platform: "darwin",
+				agentDir: isolatedAgentDir,
+				env: isolatedEnv,
+			});
+			expect(filteredPlan.canInstall).toBe(true);
+			expect(filteredPlan.steps.map(s => s.id)).toEqual([id]);
+
+			// Tampered argv must be rejected by the catalog whitelist
+			expect(
+				isTrustedCatalogArgv({
+					...item!,
+					installArgv: ["reverse", "setup", "reverse", id, "--execute", "--evil"],
+				}),
+			).toBe(false);
+			expect(
+				isTrustedCatalogArgv({
+					...item!,
+					installArgv: ["sh", "-c", `pip install ${id}`],
+				}),
+			).toBe(false);
+		}
+
+		// Regression: even when ambient process.env.REVERSE_TOOL_PATHS points to an installed home agentDir,
+		// checkReverseTools({ platform: "darwin", which }) with mocked which must NOT leak host installations.
+		const simulatedHomeTools = path.join(tempDir, "simulated-home-agent", "tools");
+		const simKscBin = path.join(simulatedHomeTools, "kaitai-struct-compiler", "bin", "kaitai-struct-compiler");
+		const simCapaBin = path.join(simulatedHomeTools, "capa", "bin", "capa");
+		const simCapaRule = path.join(simulatedHomeTools, "capa", "rules", "test.yml");
+		await fs.promises.mkdir(path.dirname(simKscBin), { recursive: true });
+		await fs.promises.mkdir(path.dirname(simCapaBin), { recursive: true });
+		await fs.promises.mkdir(path.dirname(simCapaRule), { recursive: true });
+		await fs.promises.writeFile(
+			simKscBin,
+			"#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'kaitai-struct-compiler 0.11'; exit 0; fi\necho '--read-pos'\nexit 0\n",
+			{ mode: 0o755 },
+		);
+		await fs.promises.writeFile(
+			simCapaBin,
+			'#!/bin/sh\nif [ "$1" = "--version" ]; then echo \'capa v10.0.0\'; exit 0; fi\nexit 0\n',
+			{ mode: 0o755 },
+		);
+		await fs.promises.writeFile(simCapaRule, "rule:\n  meta:\n    name: test\n  features:\n    - number: 1\n");
+
+		const prevToolPaths = process.env.REVERSE_TOOL_PATHS;
+		try {
+			process.env.REVERSE_TOOL_PATHS = [path.dirname(simKscBin), path.dirname(simCapaBin)].join(path.delimiter);
+			const noEnvMockReport = checkReverseTools({ platform: "darwin", which });
+			for (const id of ["kaitai-struct-compiler", "kaitaistruct", "capa"]) {
+				expect(noEnvMockReport.tools.find(t => t.id === id)?.status).toBe("missing");
+			}
+		} finally {
+			if (prevToolPaths !== undefined) {
+				process.env.REVERSE_TOOL_PATHS = prevToolPaths;
+			} else {
+				delete process.env.REVERSE_TOOL_PATHS;
+			}
+		}
+	});
+
+	it("resolves canonical protocol_format_parsing and executable_capability_identification capabilities", () => {
+		expect(getReverseCapability("protocol_format_parsing")?.recommendedNativeTool).toBe("format_inspect");
+		expect(getReverseCapability("protocol_format_parse")).toBeUndefined();
+		expect(getReverseCapability("executable_capability_identification")?.recommendedNativeTool).toBe(
+			"capability_inspect",
+		);
+		expect(getReverseCapability("capability_identification")).toBeUndefined();
+
+		// Compiler alone without kaitaistruct runtime must NOT mark protocol_format_parsing ready
+		const compilerOnly = resolveReverseCapabilities({
+			filterCapability: "protocol_format_parsing",
+			toolStatuses: [
+				{ id: "java", status: "installed" },
+				{ id: "kaitai-struct-compiler", status: "installed" },
+				{ id: "python", status: "installed" },
+				{ id: "kaitaistruct", status: "missing" },
+			],
+		});
+		expect(compilerOnly).toHaveLength(1);
+		expect(compilerOnly[0].id).toBe("protocol_format_parsing");
+		expect(compilerOnly[0].ready).toBe(false);
+		expect(compilerOnly[0].canStart).toBe(true);
+		expect(compilerOnly[0].status).toBe("available_with_fallbacks");
+		expect(compilerOnly[0].blockedRequirements).toContain("kaitaistruct");
+		expect(compilerOnly[0].setupCommand).toBe("reverse setup reverse kaitaistruct --execute");
+
+		// Both compiler + Java and kaitaistruct + Python mark protocol_format_parsing ready
+		const fullKaitai = resolveReverseCapabilities({
+			filterCapability: "protocol_format_parsing",
+			toolStatuses: [
+				{ id: "java", status: "installed" },
+				{ id: "kaitai-struct-compiler", status: "installed" },
+				{ id: "python", status: "installed" },
+				{ id: "kaitaistruct", status: "installed" },
+			],
+		});
+		expect(fullKaitai[0].ready).toBe(true);
+		expect(fullKaitai[0].status).toBe("ready");
+
+		// Missing capa keeps offline import/status startable (canStart: true) while marking capability unready
+		const capaMissing = resolveReverseCapabilities({
+			filterCapability: "executable_capability_identification",
+			toolStatuses: [{ id: "capa", status: "missing" }],
+		});
+		expect(capaMissing).toHaveLength(1);
+		expect(capaMissing[0].ready).toBe(false);
+		expect(capaMissing[0].canStart).toBe(true);
+		expect(capaMissing[0].status).toBe("available_with_fallbacks");
+		expect(capaMissing[0].blockedRequirements).toContain("capa");
+		expect(capaMissing[0].setupCommand).toBe("reverse setup reverse capa --execute");
+
+		const capaReady = resolveReverseCapabilities({
+			filterCapability: "executable_capability_identification",
+			toolStatuses: [{ id: "capa", status: "installed" }],
+		});
+		expect(capaReady[0].id).toBe("executable_capability_identification");
+		expect(capaReady[0].ready).toBe(true);
+		expect(capaReady[0].status).toBe("ready");
+	});
+
+	it("renders localized zh-CN labels for protocol format and capa entries while preserving English defaults", () => {
+		process.env.REVERSE_LANG = "zh-CN";
+		const which = mockWhich({
+			strings: "/usr/bin/strings",
+			file: "/usr/bin/file",
+		});
+		const zhReport = checkReverseTools({
+			platform: "darwin",
+			which,
+			agentDir: isolatedAgentDir,
+			env: { ...isolatedEnv, REVERSE_LANG: "zh-CN" },
+		});
+		const kscZh = zhReport.tools.find(t => t.id === "kaitai-struct-compiler");
+		const capaZh = zhReport.tools.find(t => t.id === "capa");
+		const fmtCapZh = zhReport.capabilities.find(c => c.id === "protocol_format_parsing");
+		const capaCapZh = zhReport.capabilities.find(c => c.id === "executable_capability_identification");
+
+		expect(kscZh?.name).toContain("Kaitai Struct 编译器");
+		expect(capaZh?.name).toContain("capa");
+		expect(fmtCapZh?.name).toContain("协议格式解析");
+		expect(capaCapZh?.name).toContain("可执行能力识别");
 	});
 });
