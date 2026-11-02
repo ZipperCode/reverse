@@ -365,6 +365,36 @@ describe("credential redaction and boundary checks", () => {
 					conclusion: "c",
 				}),
 			).rejects.toThrow("not found in evidence ledger");
+
+			// Verify hypothesis without supporting facts must be rejected, while refutation remains permitted
+			const hypNoFacts = await tool.execute("c5", {
+				action: "add",
+				kind: "hypothesis",
+				claim: "Unsupported hypothesis claim",
+				verificationPlan: "Run verification check",
+			});
+			const hypNoFactsId = hypNoFacts.details!.record!.id;
+			await expect(
+				tool.execute("c6", {
+					action: "verify",
+					hypothesisId: hypNoFactsId,
+					method: "manual",
+					command: "echo test",
+					result: "asserted",
+					conclusion: "Attempted verification without facts",
+				}),
+			).rejects.toThrow("without supporting evidence facts");
+
+			const refuteRes = await tool.execute("c7", {
+				action: "verify",
+				hypothesisId: hypNoFactsId,
+				method: "manual",
+				command: "echo test",
+				result: "failed",
+				conclusion: "Claim refuted",
+				status: "refuted",
+			});
+			expect(refuteRes.details?.record?.kind).toBe("conclusion");
 		} finally {
 			await removeWithRetries(projectDir);
 		}

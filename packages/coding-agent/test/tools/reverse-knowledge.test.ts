@@ -196,10 +196,17 @@ describe("reverse_knowledge retain and verification safety", () => {
 			const evidenceStore = new EvidenceStore({ repositoryRoot: tempDir });
 			const tool = new ReverseKnowledgeTool(session);
 
+			const fact = await evidenceStore.addFact({
+				kind: "fact",
+				sourceTool: "frida_session",
+				locator: "session:frida_1:seq:1",
+				content: "Observed sub_1000 return value check",
+			});
 			const hyp = await evidenceStore.addHypothesis({
 				kind: "hypothesis",
 				claim: "sub_1000 validates license key",
 				verificationPlan: "Hook with frida",
+				facts: [fact.id],
 			});
 
 			const conc = await evidenceStore.verifyHypothesis({
@@ -339,10 +346,17 @@ describe("reverse_knowledge learn action", () => {
 			});
 
 			// 2. Add verified hypothesis + conclusion (should be learned)
+			const factAes = await evidenceStore.addFact({
+				kind: "fact",
+				sourceTool: "debug",
+				locator: "0x4020",
+				content: "Read 32-byte key material at 0x4020",
+			});
 			const hyp = await evidenceStore.addHypothesis({
 				kind: "hypothesis",
 				claim: "AES key is 32 bytes at 0x4020",
 				verificationPlan: "dump memory",
+				facts: [factAes.id],
 			});
 			await evidenceStore.verifyHypothesis({
 				hypothesisId: hyp.id,

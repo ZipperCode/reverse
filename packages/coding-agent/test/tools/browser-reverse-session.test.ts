@@ -3,7 +3,13 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { Settings } from "@reverse/coding-agent/config/settings";
-import { createTools, BrowserReverseSessionTool, type ToolSession } from "@reverse/coding-agent/tools";
+import {
+	createTools,
+	BrowserReverseSessionTool,
+	clearActiveBrowserReverseSessionsForTest,
+	type ToolSession,
+} from "@reverse/coding-agent/tools";
+import { ReverseRuntimeSessionStore } from "@reverse/coding-agent/reverse-runtime-session";
 import { BUILTIN_TOOL_NAMES, normalizeToolName } from "@reverse/coding-agent/tools/builtin-names";
 import { removeWithRetries } from "@reverse/utils";
 
@@ -259,7 +265,18 @@ describe("browser_reverse_session action: capture, events, export_evidence, stat
 				},
 			]);
 			runner.inTabConsole.set("work", ["Connected to WebSocket"]);
-			runner.inTabRequests.set("work", [{ url: "https://finance.test/api/auth" }]);
+			runner.inTabRequests.set("work", [
+				{
+					id: "request-1",
+					seq: 1,
+					ts: 1_700_000_000_000,
+					method: "GET",
+					url: "https://finance.test/api/auth",
+					resourceType: "fetch",
+					requestHeaders: {},
+					sizes: { requestBody: 0 },
+				},
+			]);
 
 			const tool = new BrowserReverseSessionTool(session, runner);
 
@@ -268,7 +285,8 @@ describe("browser_reverse_session action: capture, events, export_evidence, stat
 				action: "capture",
 				tab_name: "work",
 			});
-			expect(capRes.details?.events).toHaveLength(2);
+			expect(capRes.details?.events).toHaveLength(3);
+			expect(capRes.details?.events?.[2]?.type).toBe("request");
 			expect(capRes.details?.consoleLogs).toHaveLength(1);
 			expect(capRes.details?.requests).toHaveLength(1);
 
@@ -287,7 +305,7 @@ describe("browser_reverse_session action: capture, events, export_evidence, stat
 				tags: ["crypto", "ws"],
 			});
 			expect(expRes.details?.evidence).toBeDefined();
-			expect(expRes.details?.evidence).toHaveLength(2);
+			expect(expRes.details?.evidence).toHaveLength(3);
 			expect(expRes.details?.evidence?.[0].locator).toBe("tab:work:websocket_send:ws_1");
 			expect(expRes.details?.evidence?.[0].tags).toContain("crypto");
 			expect(expRes.details?.evidence?.[0].tags).toContain("websocket_send");
@@ -298,7 +316,7 @@ describe("browser_reverse_session action: capture, events, export_evidence, stat
 				tab_name: "work",
 			});
 			expect(statusRes.details?.status).toBe("active");
-			expect(statusRes.details?.eventCount).toBe(2);
+			expect(statusRes.details?.eventCount).toBe(3);
 
 			// 5. Close
 			const closeRes = await tool.execute("cl_1", {
@@ -548,6 +566,247 @@ describe("browser_reverse_session regression: structured send/console/ws/crypto 
 			expect(eventsRes.details?.events).toHaveLength(1);
 			expect(eventsRes.details?.events?.[0].id).toBe("persist_cr_1");
 		} finally {
+			await removeWithRetries(tempDir);
+			await removeWithRetries(stateDir);
+		}
+	});
+});
+
+describe("browser_reverse_session Step 4: request initiator merge, filter/limit, and runtime sync", () => {
+	it("maps requests to network:<id> without sensitive headers/body and persists initiator to runtime store", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "brs-step4-sync-"));
+		const stateDir = await fs.mkdtemp(path.join(os.tmpdir(), "brs-step4-sync-state-"));
+		try {
+			const session = createTestSession(tempDir);
+			const runner = createMockBrowserRunner({
+				netTab: { state: "alive", url: "http://127.0.0.1:8080/app" },
+			});
+			runner.inTabEvents.set("netTab", [
+				{
+					timestamp: 995,
+					type: "console",
+					method: "log",
+					text: "starting sign flow",
+				},
+				{
+					timestamp: 1000,
+					type: "fetch_request",
+					id: "request-7",
+					method: "POST",
+					url: "http://127.0.0.1:8080/api/sign",
+					stack: "Error\n    at signPayload (http://127.0.0.1:8080/caller.js:4:16)",
+				},
+			]);
+			runner.inTabRequests.set("netTab", [
+				// 缺失 id/method/ts 的残缺记录应直接跳过而不伪造标识
+				{ url: "http://127.0.0.1:8080/malformed" },
+				{
+					id: "request-7",
+					seq: 7,
+					ts: 1005,
+					method: "POST",
+					url: "http://127.0.0.1:8080/api/sign",
+					resourceType: "fetch",
+					requestHeaders: { authorization: "Bearer super-secret-token" },
+					responseHeaders: { "set-cookie": "sid=secret" },
+					body: '{"secret":"value"}',
+					sizes: { requestBody: 18 },
+					initiator: {
+						type: "script",
+						stack: {
+							callFrames: [
+								{
+									functionName: "signPayload",
+									scriptId: "42",
+									url: "http://127.0.0.1:8080/caller.js",
+									lineNumber: 3,
+									columnNumber: 15,
+								},
+							],
+						},
+					},
+				},
+			]);
+
+			const tool = new BrowserReverseSessionTool(session, runner, stateDir);
+			const cap1 = await tool.execute("cap_net_1", {
+				action: "capture",
+				session_id: "brs-step4-net",
+				tab_name: "netTab",
+			});
+
+			// Hook ID request-7 与网络 ID network:request-7 不冲突，且无 id 的 console 事件被保留，残缺请求被跳过
+			expect(cap1.details?.events).toHaveLength(3);
+			expect(cap1.details?.requests).toHaveLength(2);
+			const reqEv = cap1.details?.events?.find(e => e.type === "request");
+			expect(reqEv).toBeDefined();
+			expect(reqEv?.id).toBe("network:request-7");
+			expect(reqEv?.requestId).toBe("request-7");
+			expect(reqEv?.method).toBe("POST");
+			expect(reqEv?.url).toBe("http://127.0.0.1:8080/api/sign");
+			expect(reqEv?.headers).toBeUndefined();
+			expect(reqEv?.body).toBeUndefined();
+			expect("requestHeaders" in (reqEv ?? {})).toBe(false);
+			expect("responseHeaders" in (reqEv ?? {})).toBe(false);
+			expect(reqEv?.initiator).toEqual({
+				type: "script",
+				stack: {
+					callFrames: [
+						{
+							functionName: "signPayload",
+							scriptId: "42",
+							url: "http://127.0.0.1:8080/caller.js",
+							lineNumber: 3,
+							columnNumber: 15,
+						},
+					],
+				},
+			});
+
+			// 重复 capture 时有 id 与无 id（console）事件均不重复分配 seq
+			runner.inTabEvents.set("netTab", [
+				{
+					timestamp: 995,
+					type: "console",
+					method: "log",
+					text: "starting sign flow",
+				},
+				{
+					timestamp: 1000,
+					type: "fetch_request",
+					id: "request-7",
+					method: "POST",
+					url: "http://127.0.0.1:8080/api/sign",
+					stack: "Error\n    at signPayload (http://127.0.0.1:8080/caller.js:4:16)",
+				},
+			]);
+			const cap2 = await tool.execute("cap_net_2", {
+				action: "capture",
+				session_id: "brs-step4-net",
+				tab_name: "netTab",
+			});
+			expect(cap2.details?.eventCount).toBe(3);
+			expect(cap2.details?.events?.map(e => e.seq)).toEqual([1, 2, 3]);
+			// 验证 ReverseRuntimeSessionStore 持久化记录保留 initiator 与 0 基 callsite
+			const runtimeStore = ReverseRuntimeSessionStore.forSession(tempDir, stateDir);
+			const runtimeRecord = await runtimeStore.get("brs-step4-net");
+			expect(runtimeRecord).not.toBeNull();
+			const recentEvents = Array.isArray(runtimeRecord?.metadata?.recent_events)
+				? runtimeRecord.metadata.recent_events
+				: [];
+			expect(recentEvents).toHaveLength(3);
+			const persistedNet = recentEvents.find(ev =>
+				Boolean(ev && typeof ev === "object" && "id" in ev && ev.id === "network:request-7"),
+			);
+			expect(persistedNet).toMatchObject({
+				id: "network:request-7",
+				kind: "network",
+				channel: "request",
+				seq: 3,
+				metadata: {
+					originalType: "request",
+					requestId: "request-7",
+					callsite: {
+						url: "http://127.0.0.1:8080/caller.js",
+						lineNumber: 3,
+						columnNumber: 15,
+					},
+					initiator: {
+						type: "script",
+						stack: {
+							callFrames: [
+								{
+									functionName: "signPayload",
+									scriptId: "42",
+									url: "http://127.0.0.1:8080/caller.js",
+									lineNumber: 3,
+									columnNumber: 15,
+								},
+							],
+						},
+					},
+				},
+			});
+		} finally {
+			clearActiveBrowserReverseSessionsForTest();
+			await removeWithRetries(tempDir);
+			await removeWithRetries(stateDir);
+		}
+	});
+
+	it("applies filter and limit consistently across merged hook and request events", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "brs-step4-merge-"));
+		const stateDir = await fs.mkdtemp(path.join(os.tmpdir(), "brs-step4-merge-state-"));
+		try {
+			const session = createTestSession(tempDir);
+			const runner = createMockBrowserRunner({
+				mergeTab: { state: "alive", url: "http://127.0.0.1:8080/" },
+			});
+			// 构造超过默认 50 条的噪声事件，确保合并前不会被子调用提前分页截断匹配项
+			const noiseHooks = Array.from({ length: 60 }, (_, idx) => ({
+				timestamp: 100 + idx,
+				type: "console",
+				id: `noise_${idx}`,
+				text: `noise-${idx}`,
+			}));
+			runner.inTabEvents.set("mergeTab", [
+				...noiseHooks,
+				{
+					timestamp: 200,
+					type: "fetch_request",
+					id: "hook_target_1",
+					method: "GET",
+					url: "http://127.0.0.1:8080/api/target-a",
+				},
+			]);
+			runner.inTabRequests.set("mergeTab", [
+				{
+					id: "request-1",
+					seq: 1,
+					ts: 150,
+					method: "GET",
+					url: "http://127.0.0.1:8080/static/logo.png",
+					resourceType: "image",
+					requestHeaders: {},
+					sizes: { requestBody: 0 },
+				},
+				{
+					id: "request-2",
+					seq: 2,
+					ts: 205,
+					method: "GET",
+					url: "http://127.0.0.1:8080/api/target-b",
+					resourceType: "fetch",
+					requestHeaders: {},
+					sizes: { requestBody: 0 },
+				},
+				{
+					id: "request-3",
+					seq: 3,
+					ts: 210,
+					method: "GET",
+					url: "http://127.0.0.1:8080/api/target-c",
+					resourceType: "fetch",
+					requestHeaders: {},
+					sizes: { requestBody: 0 },
+				},
+			]);
+
+			const tool = new BrowserReverseSessionTool(session, runner, stateDir);
+			const res = await tool.execute("cap_merged_limit", {
+				action: "capture",
+				session_id: "brs-step4-merge",
+				tab_name: "mergeTab",
+				filter: "/api/target-",
+				limit: 2,
+			});
+
+			expect(res.details?.events).toHaveLength(2);
+			expect(res.details?.events?.map(e => e.id)).toEqual(["hook_target_1", "network:request-2"]);
+			expect(res.details?.events?.map(e => e.seq)).toEqual([1, 2]);
+			expect(res.details?.requests).toHaveLength(3);
+		} finally {
+			clearActiveBrowserReverseSessionsForTest();
 			await removeWithRetries(tempDir);
 			await removeWithRetries(stateDir);
 		}

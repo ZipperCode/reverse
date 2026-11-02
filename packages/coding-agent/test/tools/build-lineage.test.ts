@@ -278,11 +278,19 @@ describe("Issue #10: Durable Build Artifact Lineage & Cumulative Patch Verificat
 		// Invariant 7: older hash runtime evidence not inherited
 		// -------------------------------------------------------------------------
 		// Record hypothesis & conclusion for mod1
+		const factMod1 = await evidenceStore.addFact({
+			kind: "fact",
+			sourceTool: "frida_session",
+			locator: "session:mod1:seq:1",
+			content: "Observed ColdBoot Complete on mod1",
+			target: "mod1.apk",
+		});
 		const hyp = await evidenceStore.addHypothesis({
 			kind: "hypothesis",
 			claim: "Cold boot succeeds with native condition NOPed",
 			verificationPlan: "Observe logcat ColdBoot Complete",
 			target: "mod1.apk",
+			facts: [factMod1.id],
 		});
 
 		const concMod1 = await evidenceStore.verifyHypothesis({
@@ -309,11 +317,19 @@ describe("Issue #10: Durable Build Artifact Lineage & Cumulative Patch Verificat
 		expect(await store.getDerivative(workflowId, "mod2_with_old_evidence")).toBeNull();
 
 		// Valid evidence bound to mod2's exact output hash promotes runtime_status to verified
+		const factMod2 = await evidenceStore.addFact({
+			kind: "fact",
+			sourceTool: "frida_session",
+			locator: "session:mod2:seq:1",
+			content: "Observed ColdBoot Complete on mod2",
+			target: "mod2.apk",
+		});
 		const hypMod2 = await evidenceStore.addHypothesis({
 			kind: "hypothesis",
 			claim: "Cold boot succeeds with native condition NOPed on mod2",
 			verificationPlan: "Observe logcat ColdBoot Complete on mod2",
 			target: "mod2.apk",
+			facts: [factMod2.id],
 		});
 
 		const concMod2 = await evidenceStore.verifyHypothesis({

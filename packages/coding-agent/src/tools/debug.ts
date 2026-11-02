@@ -1188,7 +1188,9 @@ export class DebugTool implements AgentTool<typeof debugSchema, DebugExecutionDe
 					kind: params.kind,
 				});
 				const target = params.export_target || params.program;
-				const facts = eventResult.events.map(ev => dynamicEventToFactInput(ev, { target }));
+				const facts = eventResult.events.map(ev =>
+					dynamicEventToFactInput(ev, { target, trustedSessionEvent: true }),
+				);
 				details.evidence = facts;
 				details.eventCount = facts.length;
 				if (facts.length === 0) {

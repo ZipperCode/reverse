@@ -140,6 +140,52 @@ describe("reverse_runtime_session sanitization", () => {
 		expect(sanitized.password).toBe("[REDACTED]");
 	});
 
+	it("preserves string event channel and bounded initiator callFrames while keeping general depth cap", () => {
+		const frames = Array.from({ length: 12 }, (_, idx) => ({
+			functionName: `fn_${idx}`,
+			scriptId: `${idx + 1}`,
+			url: `https://app.example.com/caller.js?token=secretToken999&v=${idx}`,
+			lineNumber: idx,
+			columnNumber: 4,
+		}));
+		const metadata = {
+			channel: { send: () => true },
+			recent_events: [
+				{
+					id: "network:request-1",
+					kind: "network",
+					channel: "request",
+					metadata: {
+						initiator: {
+							type: "script",
+							stack: { callFrames: frames },
+						},
+						deep_arbitrary: { l4: { l5: { l6: "too-deep" } } },
+					},
+				},
+			],
+		};
+
+		const sanitized = sanitizeMetadataObject(metadata);
+		expect(sanitized && typeof sanitized === "object" && !Array.isArray(sanitized)).toBe(true);
+		if (!sanitized || typeof sanitized !== "object" || Array.isArray(sanitized)) return;
+		expect(sanitized.channel).toBeUndefined();
+		const recent = Array.isArray(sanitized.recent_events) ? sanitized.recent_events : [];
+		expect(recent[0]).toMatchObject({
+			id: "network:request-1",
+			kind: "network",
+			channel: "request",
+			metadata: {
+				deep_arbitrary: { l4: { l5: "[Max depth exceeded]" } },
+			},
+		});
+		const serialized = JSON.stringify(sanitized);
+		expect(serialized).not.toContain("secretToken999");
+		expect(serialized).toContain("fn_0");
+		expect(serialized).toContain("fn_9");
+		expect(serialized).not.toContain("fn_10");
+	});
+
 	it("derives target summary from sanitized target details and redacts tokens", () => {
 		const rawToken = "super_secret_token_live_abcdef123456789";
 		const targetDetails = {

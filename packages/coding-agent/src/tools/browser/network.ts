@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
 import { untilAborted } from "@reverse/utils";
+import type { Protocol } from "devtools-protocol";
 import type { HTTPRequest, HTTPResponse, Page } from "puppeteer-core";
 import { ToolError } from "@reverse/tui/tools/tool-errors";
 
@@ -9,6 +10,8 @@ import { ToolError } from "@reverse/tui/tools/tool-errors";
 export const REQUEST_LOG_LIMIT = 200;
 /** Maximum response-body bytes returned by `tab.request()` and embedded in HAR entries. */
 export const RESPONSE_BODY_LIMIT_BYTES = 1024 * 1024;
+export const MAX_INITIATOR_CALL_FRAMES = 10;
+export const MAX_INITIATOR_ASYNC_PARENTS = 4;
 const ROUTE_INTERCEPT_PRIORITY = 10;
 const PASS_THROUGH_INTERCEPT_PRIORITY = 0;
 const REQUEST_RECORD = Symbol("reverse.browser.requestRecord");
@@ -50,6 +53,26 @@ export interface NetworkRequestSizes {
 	responseBody?: number;
 }
 
+export interface NetworkInitiatorCallFrame {
+	functionName: string;
+	scriptId: string;
+	url: string;
+	lineNumber: number;
+	columnNumber: number;
+}
+
+export interface NetworkRequestInitiatorStack {
+	callFrames: NetworkInitiatorCallFrame[];
+}
+
+export interface NetworkRequestInitiator {
+	type: string;
+	url?: string;
+	lineNumber?: number;
+	columnNumber?: number;
+	stack?: NetworkRequestInitiatorStack;
+}
+
 /** Bounded request-log record returned by tab.requests(). */
 export interface NetworkRequestRecord {
 	/** Stable request id accepted by tab.request(). */
@@ -78,6 +101,8 @@ export interface NetworkRequestRecord {
 	responseHeaders?: Record<string, string>;
 	/** Request and response byte counts. */
 	sizes: NetworkRequestSizes;
+	/** 保持 CDP 0 基坐标的请求发起方元信息。 */
+	initiator?: NetworkRequestInitiator;
 }
 
 /** Full request-log record returned by tab.request(). */
@@ -398,6 +423,9 @@ export class BrowserNetworkManager {
 		if (existing) return existing;
 		const seq = this.#nextSeq++;
 		const postData = request.postData();
+		const initiator = normalizeRequestInitiator(
+			typeof request.initiator === "function" ? request.initiator() : undefined,
+		);
 		const record: StoredRequest = {
 			id: `request-${seq}`,
 			seq,
@@ -407,6 +435,7 @@ export class BrowserNetworkManager {
 			resourceType: request.resourceType(),
 			requestHeaders: request.headers(),
 			sizes: { requestBody: postData === undefined ? 0 : Buffer.byteLength(postData) },
+			...(initiator !== undefined ? { initiator } : {}),
 			request,
 		};
 		this.#records.push(record);
@@ -689,8 +718,73 @@ export function normalizeLimit(limit: number | undefined): number | undefined {
 	return limit;
 }
 
+type RawInitiatorStack = {
+	callFrames?: ReadonlyArray<Partial<NetworkInitiatorCallFrame>>;
+	parent?: RawInitiatorStack;
+};
+
+/** 规范化并深拷贝 CDP 请求发起方信息；异步父栈最多向上展开 4 层，总帧数上限 10 帧，缺失保持 undefined。 */
+export function normalizeRequestInitiator(
+	raw: Protocol.Network.Initiator | NetworkRequestInitiator | undefined,
+): NetworkRequestInitiator | undefined {
+	if (!raw || typeof raw !== "object") return undefined;
+	if (typeof raw.type !== "string" || raw.type.length === 0) return undefined;
+
+	const url = typeof raw.url === "string" && raw.url.length > 0 ? raw.url : undefined;
+	const lineNumber =
+		typeof raw.lineNumber === "number" && Number.isFinite(raw.lineNumber) ? raw.lineNumber : undefined;
+	const columnNumber =
+		typeof raw.columnNumber === "number" && Number.isFinite(raw.columnNumber) ? raw.columnNumber : undefined;
+
+	let stack: NetworkRequestInitiatorStack | undefined;
+	const rawStack: RawInitiatorStack | undefined = raw.stack;
+	if (rawStack && typeof rawStack === "object") {
+		const callFrames: NetworkInitiatorCallFrame[] = [];
+		let current: RawInitiatorStack | undefined = rawStack;
+		let asyncDepth = 0;
+		while (current && typeof current === "object" && callFrames.length < MAX_INITIATOR_CALL_FRAMES) {
+			if (Array.isArray(current.callFrames)) {
+				for (const frame of current.callFrames) {
+					if (callFrames.length >= MAX_INITIATOR_CALL_FRAMES) break;
+					if (!frame || typeof frame !== "object") continue;
+					if (
+						typeof frame.lineNumber !== "number" ||
+						!Number.isFinite(frame.lineNumber) ||
+						typeof frame.columnNumber !== "number" ||
+						!Number.isFinite(frame.columnNumber)
+					) {
+						continue;
+					}
+					callFrames.push({
+						functionName: typeof frame.functionName === "string" ? frame.functionName : "",
+						scriptId: typeof frame.scriptId === "string" ? frame.scriptId : "",
+						url: typeof frame.url === "string" ? frame.url : "",
+						lineNumber: frame.lineNumber,
+						columnNumber: frame.columnNumber,
+					});
+				}
+			}
+			if (asyncDepth >= MAX_INITIATOR_ASYNC_PARENTS) break;
+			current = current.parent;
+			asyncDepth += 1;
+		}
+		if (callFrames.length > 0 || Array.isArray(rawStack.callFrames)) {
+			stack = { callFrames };
+		}
+	}
+
+	return {
+		type: raw.type,
+		...(url !== undefined ? { url } : {}),
+		...(lineNumber !== undefined ? { lineNumber } : {}),
+		...(columnNumber !== undefined ? { columnNumber } : {}),
+		...(stack !== undefined ? { stack } : {}),
+	};
+}
+
 /** A detached copy of the public fields of `record` (backend bookkeeping dropped). */
 export function toPublicRecord(record: NetworkRequestRecord): NetworkRequestRecord {
+	const initiator = normalizeRequestInitiator(record.initiator);
 	return {
 		id: record.id,
 		seq: record.seq,
@@ -705,6 +799,7 @@ export function toPublicRecord(record: NetworkRequestRecord): NetworkRequestReco
 		requestHeaders: { ...record.requestHeaders },
 		responseHeaders: record.responseHeaders ? { ...record.responseHeaders } : undefined,
 		sizes: { ...record.sizes },
+		...(initiator !== undefined ? { initiator } : {}),
 	};
 }
 

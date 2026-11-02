@@ -63,6 +63,28 @@ export interface NormalizeDynamicEventOptions {
 	metadata?: Record<string, unknown>;
 }
 
+export interface DynamicCallsiteMetadata {
+	url?: string;
+	lineNumber?: number;
+	columnNumber?: number;
+	module?: string;
+	address?: string;
+}
+
+function mergeEventMetadata(
+	rawMetadata: unknown,
+	optionsMetadata?: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+	const base =
+		rawMetadata && typeof rawMetadata === "object" && !Array.isArray(rawMetadata)
+			? (rawMetadata as Record<string, unknown>)
+			: undefined;
+	if (base && optionsMetadata) {
+		return { ...base, ...optionsMetadata };
+	}
+	return optionsMetadata ?? base;
+}
+
 export function normalizeFridaEvent(
 	raw: unknown,
 	sessionId: string,
@@ -111,7 +133,7 @@ export function normalizeFridaEvent(
 			target: rawTarget,
 			payload,
 			raw: rawText,
-			metadata: options.metadata ?? (obj.metadata as Record<string, unknown> | undefined),
+			metadata: mergeEventMetadata(obj.metadata, options.metadata),
 		};
 	}
 
@@ -149,17 +171,17 @@ export function normalizeBrowserEvent(
 
 		const typeStr = typeof obj.type === "string" ? obj.type.toLowerCase() : "";
 		let kind: DynamicEventKind = "custom";
-		let channel: string | undefined = typeStr || undefined;
+		let channel: string | undefined = typeStr || (typeof obj.channel === "string" ? obj.channel : undefined);
 
-		if (typeStr === "crypto") {
+		if (/^crypto(?:[:._]|$)/.test(typeStr)) {
 			kind = "crypto";
 			channel = "crypto";
-		} else if (typeStr === "websocket" || typeStr === "ws") {
+		} else if (typeStr === "ws" || typeStr.startsWith("websocket")) {
 			kind = "network";
 			channel = "websocket";
-		} else if (typeStr === "fetch" || typeStr === "xhr" || typeStr === "request" || typeStr === "response") {
+		} else if (/^(fetch|xhr)(?:[:._]|$)/.test(typeStr) || typeStr === "request" || typeStr === "response") {
 			kind = "network";
-			channel = typeStr;
+			channel = typeStr.startsWith("fetch") ? "fetch" : typeStr.startsWith("xhr") ? "xhr" : typeStr;
 		} else if (typeStr === "dom") {
 			kind = "dom";
 			channel = "dom";
@@ -188,6 +210,23 @@ export function normalizeBrowserEvent(
 		const payload = obj.payload ?? obj.details ?? obj.data ?? obj;
 		const rawText =
 			typeof obj.raw === "string" ? obj.raw : typeof payload === "string" ? payload : JSON.stringify(payload);
+		const metadata = { ...mergeEventMetadata(obj.metadata, options.metadata) };
+		const data = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : undefined;
+		const initiator = obj.initiator ?? data?.initiator;
+		const stack = obj.stack ?? data?.stack;
+		if (typeStr) metadata.originalType = obj.type;
+		if (stack !== undefined) metadata.stack = stack;
+		if (initiator && typeof initiator === "object") {
+			metadata.initiator = initiator;
+			const source = initiator as Record<string, unknown>;
+			const trace = source.stack as { callFrames?: unknown[] } | undefined;
+			// 仅使用 CDP 结构化帧；hook 自报字符串栈保留为线索，不推断调用位置。
+			const callsite =
+				trace?.callFrames?.map(extractValidCallsite).find(site => site !== null) ?? extractValidCallsite(source);
+			if (callsite) metadata.callsite = callsite;
+		}
+		const requestId = obj.requestId ?? data?.requestId ?? (typeStr === "request" ? obj.id : undefined);
+		if (requestId !== undefined) metadata.requestId = requestId;
 
 		return {
 			id: rawId,
@@ -200,7 +239,7 @@ export function normalizeBrowserEvent(
 			target: rawTarget,
 			payload,
 			raw: rawText,
-			metadata: options.metadata ?? (obj.metadata as Record<string, unknown> | undefined),
+			metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
 		};
 	}
 
@@ -234,12 +273,20 @@ export function normalizeDapEvent(
 		const rawSeq = typeof obj.seq === "number" ? obj.seq : seq;
 		const rawId = typeof obj.id === "string" ? obj.id : `ev_${sessionId}_${rawSeq}`;
 		const rawTimestamp = typeof obj.timestamp === "string" ? obj.timestamp : timestamp;
+		const rawTarget = typeof obj.target === "string" ? obj.target : target;
+		const rawChannel = typeof obj.channel === "string" ? obj.channel : undefined;
 
 		const eventName = typeof obj.event === "string" ? obj.event : typeof obj.type === "string" ? obj.type : "";
-		const body = (obj.body && typeof obj.body === "object" ? obj.body : obj) as Record<string, unknown>;
+		const body = (
+			obj.body && typeof obj.body === "object"
+				? obj.body
+				: obj.payload && typeof obj.payload === "object"
+					? obj.payload
+					: obj
+		) as Record<string, unknown>;
 
 		let kind: DynamicEventKind = "custom";
-		let channel: string | undefined = eventName || undefined;
+		let channel: string | undefined = eventName || rawChannel;
 
 		if (eventName === "output") {
 			const category = typeof body.category === "string" ? body.category.toLowerCase() : "";
@@ -285,10 +332,10 @@ export function normalizeDapEvent(
 			timestamp: rawTimestamp,
 			kind,
 			channel,
-			target,
+			target: rawTarget,
 			payload: body,
 			raw: rawText,
-			metadata: options.metadata,
+			metadata: mergeEventMetadata(obj.metadata, options.metadata),
 		};
 	}
 
@@ -355,7 +402,7 @@ export function normalizeUnidbgEvent(
 			target: rawTarget,
 			payload,
 			raw: rawText,
-			metadata: options.metadata ?? (obj.metadata as Record<string, unknown> | undefined),
+			metadata: mergeEventMetadata(obj.metadata, options.metadata),
 		};
 	}
 
@@ -438,7 +485,10 @@ export function normalizeDynamicEvent(
 				target,
 				payload: raw,
 				raw: stringVal,
-				metadata: options.metadata,
+				metadata: mergeEventMetadata(
+					raw && typeof raw === "object" ? (raw as Record<string, unknown>).metadata : undefined,
+					options.metadata,
+				),
 			};
 		}
 	}
@@ -517,6 +567,62 @@ export interface DynamicFactConversionOptions {
 	classification?: string;
 	tags?: string[];
 	titlePrefix?: string;
+	subject?: string;
+	trustedSessionEvent?: boolean;
+}
+
+const QUALIFIED_DYNAMIC_CALL_KINDS: Readonly<Record<string, true>> = {
+	network: true,
+	crypto: true,
+	trace: true,
+	breakpoint: true,
+	step: true,
+};
+
+const HEX_ADDRESS_RE = /^(?:0x)?[0-9a-fA-F]+$/;
+
+// 校验是否存在结构化合法调用位置（网页 0 基行列或 native 模块+十六进制地址）
+function extractValidCallsite(callsite: unknown): DynamicCallsiteMetadata | null {
+	if (!callsite || typeof callsite !== "object" || Array.isArray(callsite)) {
+		return null;
+	}
+	const cs = callsite as Record<string, unknown>;
+
+	const hasWebUrl = typeof cs.url === "string" && cs.url.trim().length > 0;
+	const hasValidLine = typeof cs.lineNumber === "number" && Number.isInteger(cs.lineNumber) && cs.lineNumber >= 0;
+	const hasValidColumn =
+		cs.columnNumber === undefined ||
+		(typeof cs.columnNumber === "number" && Number.isInteger(cs.columnNumber) && cs.columnNumber >= 0);
+
+	if (hasWebUrl && hasValidLine && hasValidColumn) {
+		return {
+			url: (cs.url as string).trim(),
+			lineNumber: cs.lineNumber as number,
+			...(typeof cs.columnNumber === "number" ? { columnNumber: cs.columnNumber } : {}),
+		};
+	}
+
+	const hasModule = typeof cs.module === "string" && cs.module.trim().length > 0;
+	const hasHexAddress = typeof cs.address === "string" && HEX_ADDRESS_RE.test(cs.address.trim());
+
+	if (hasModule && hasHexAddress) {
+		return {
+			module: (cs.module as string).trim(),
+			address: (cs.address as string).trim(),
+		};
+	}
+
+	return null;
+}
+
+export function isQualifiedDynamicCallEvent(event: UniversalDynamicEvent): boolean {
+	if (!event || typeof event !== "object") {
+		return false;
+	}
+	if (!QUALIFIED_DYNAMIC_CALL_KINDS[event.kind]) {
+		return false;
+	}
+	return extractValidCallsite(event.metadata?.callsite) !== null;
 }
 
 const DYNAMIC_BEARER_AUTH_RE = /(\b(?:bearer|basic)\s+)[A-Za-z0-9._~+/=-]+/gi;
@@ -570,9 +676,18 @@ export function dynamicEventToFactInput(
 		}
 	}
 
+	const validCallsite = extractValidCallsite(event.metadata?.callsite);
+	const callsiteLine = validCallsite
+		? validCallsite.url !== undefined
+			? `Callsite: ${validCallsite.url}:${validCallsite.lineNumber! + 1}${validCallsite.columnNumber !== undefined ? `:${validCallsite.columnNumber + 1}` : ""}`
+			: `Callsite: ${validCallsite.module}@${validCallsite.address}`
+		: "Callsite: unavailable (missing structured callsite metadata; retained as ordinary observation fact)";
+
 	const content = redactDynamicEvidenceText(
 		`Dynamic event captured from session '${event.sessionId}' (${event.source}) at sequence ${event.seq} (${event.timestamp}).\n` +
 			`Kind: ${event.kind}, Channel: ${event.channel || "default"}\n` +
+			`${callsiteLine}\n` +
+			(event.metadata?.requestId !== undefined ? `Request ID: ${String(event.metadata.requestId)}\n` : "") +
 			(payloadStr ? `Payload:\n${payloadStr.slice(0, 4000)}` : `Raw: ${String(event.raw || "").slice(0, 4000)}`),
 	);
 
@@ -621,6 +736,12 @@ export function dynamicEventToFactInput(
 		}
 	}
 
+	const subject =
+		options.subject?.trim() ||
+		(typeof event.metadata?.subject === "string" ? event.metadata.subject.trim() : undefined) ||
+		undefined;
+	const qualifiedTrustedCall = options.trustedSessionEvent === true && isQualifiedDynamicCallEvent(event);
+
 	return {
 		kind: "fact",
 		title,
@@ -631,6 +752,8 @@ export function dynamicEventToFactInput(
 		excerpt,
 		classification,
 		tags: derivedTags,
+		...(subject ? { subject } : {}),
+		...(qualifiedTrustedCall ? { assurance: "dynamic_call_observation" as const } : {}),
 		...(executionBinding ? { executionBinding } : {}),
 	};
 }

@@ -597,11 +597,19 @@ describe("apk_artifact tool contracts & safety", () => {
 			expect(baselineReopened?.output_sha256).toBe(repackReplay.sha256);
 
 			// 7. Old hash runtime evidence refused
+			const factOld = await evidenceStore.addFact({
+				kind: "fact",
+				sourceTool: "frida_session",
+				locator: "session:mod1_boot:seq:1",
+				content: "Observed ColdBoot Complete on mod1",
+				target: "mod1.apk",
+			});
 			const oldEvidence = await evidenceStore.addHypothesis({
 				kind: "hypothesis",
 				claim: "Cold boot trace on mod1",
 				verificationPlan: "Observe logcat ColdBoot Complete",
 				target: "mod1.apk",
+				facts: [factOld.id],
 			});
 			const concOld = await evidenceStore.verifyHypothesis({
 				hypothesisId: oldEvidence.id,
@@ -1188,11 +1196,21 @@ describe("apk_artifact split APK lifecycle & package set contracts", () => {
 			);
 
 			const evStore = new EvidenceStore({ repositoryRoot: tempDir });
+			const factPrior = await evStore.addFact({
+				kind: "fact",
+				sourceTool: "frida_session",
+				locator: "session:prior_apk:seq:1",
+				content: "Prior build runtime trace",
+				executionBinding: {
+					artifactSha256: "0000000000000000000000000000000000000000000000000000000000000000",
+				},
+			});
 			const hyp = await evStore.addHypothesis({
 				kind: "hypothesis",
 				claim: "Historical runtime proof from prior single APK build",
 				verificationPlan: "Verify via execution",
 				target: "prior.apk",
+				facts: [factPrior.id],
 			});
 			const conc = await evStore.verifyHypothesis({
 				hypothesisId: hyp.id,

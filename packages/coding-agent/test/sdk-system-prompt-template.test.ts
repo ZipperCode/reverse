@@ -4,6 +4,7 @@ import { getBundledModel } from "@reverse/catalog/models";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { type CreateAgentSessionOptions, createAgentSession } from "@reverse/coding-agent/sdk";
+import { buildSystemPrompt } from "@reverse/coding-agent/system-prompt";
 import type { AgentSession } from "@reverse/coding-agent/session/agent-session";
 import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
@@ -100,5 +101,22 @@ describe("SDK systemPrompt replacements", () => {
 				expect(session.systemPrompt).toEqual(["callback replacement"]);
 			},
 		);
+	});
+
+	it("renders investigation data only in the dynamic project tail", async () => {
+		using dir = TempDir.createSync("@reverse-brief-template-");
+		const options = {
+			cwd: dir.path(),
+			contextFiles: [],
+			noContextFiles: true,
+			skills: [],
+			systemPromptTemplate: "Stable template {{investigationBrief}}",
+		};
+		const first = await buildSystemPrompt({ ...options, investigationBrief: "Historical run A" });
+		const second = await buildSystemPrompt({ ...options, investigationBrief: "Historical run B" });
+		expect(first.systemPrompt[0]).toBe(second.systemPrompt[0]);
+		expect(first.systemPrompt[0]).not.toContain("Historical run A");
+		expect(first.systemPrompt.at(-1)).toContain("Historical run A");
+		expect(second.systemPrompt.at(-1)).toContain("Historical run B");
 	});
 });

@@ -40,6 +40,7 @@ export interface BrowserReverseEvent {
 	timestamp: number;
 	type: string;
 	id?: string;
+	requestId?: string;
 	method?: string;
 	url?: string;
 	status?: number;
@@ -57,6 +58,7 @@ export interface BrowserReverseEvent {
 	result?: unknown;
 	code?: string;
 	stack?: string;
+	initiator?: unknown;
 	[key: string]: unknown;
 }
 
@@ -1501,7 +1503,7 @@ export class JsHookPresetTool implements AgentTool<typeof jsHookPresetSchema, Js
 			const tabName = params.tab_name?.trim() || "main";
 			const filter = params.filter ? params.filter.trim() : null;
 			const clear = params.clear === true;
-			const limit = Math.min(500, Math.max(1, Math.floor(params.limit ?? 50)));
+			const limit = Math.min(1000, Math.max(1, Math.floor(params.limit ?? 50)));
 			const exportEvidence = params.export_evidence === true;
 
 			const runner = this.getRunner();
@@ -1555,13 +1557,21 @@ export class JsHookPresetTool implements AgentTool<typeof jsHookPresetSchema, Js
 			const runRes = await runner.runInTab(tabName, { code: captureCode, signal });
 			const val = (runRes && typeof runRes.returnValue === "object" ? runRes.returnValue : {}) as {
 				events?: BrowserReverseEvent[];
-				consoleLogs?: unknown[];
+				consoleLogs?: unknown;
 				requests?: unknown[];
 			};
 
 			const rawEvents = Array.isArray(val.events) ? val.events : [];
 			const pagedEvents = rawEvents.slice(0, limit);
-			const consoleLogs = Array.isArray(val.consoleLogs) ? val.consoleLogs : [];
+			const rawConsole = val.consoleLogs;
+			const consoleLogs = Array.isArray(rawConsole)
+				? rawConsole
+				: rawConsole &&
+					  typeof rawConsole === "object" &&
+					  "entries" in rawConsole &&
+					  Array.isArray(rawConsole.entries)
+					? rawConsole.entries
+					: [];
 			const requests = Array.isArray(val.requests) ? val.requests : [];
 
 			const typeCounts: Record<string, number> = {};

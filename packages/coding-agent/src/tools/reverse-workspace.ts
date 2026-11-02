@@ -13,20 +13,26 @@ import {
 	inspectWorkspace,
 	loadWorkspaceManifest,
 	cleanWorkspace,
+	beginAnalysisRun,
+	recordAnalysisRun,
+	recallAnalysisRuns,
 	DEFAULT_WORKSPACE_DIR,
 	type ReverseWorkspaceManifest,
 	type InspectWorkspaceResult,
 	type CleanWorkspaceResult,
+	type AnalysisRunPaths,
+	type AnalysisRunRecord,
+	type AnalysisRunRecall,
 } from "../reverse-workspace";
 
 const reverseWorkspaceSchema = type({
 	action: type
-		.enumerated("export", "status", "manifest", "clean")
+		.enumerated("export", "status", "manifest", "clean", "begin", "record", "recall")
 		.describe(
-			"Workspace action: export (write standardized .reverse/ workspace), status (inspect .reverse/ workspace integrity and layout), manifest (read manifest.json), clean (safely remove dump files while preserving reports)",
+			"Workspace action: export (write standardized .reverse/ workspace), status (inspect .reverse/ workspace integrity and layout), manifest (read manifest.json), clean (safely remove dump files while preserving reports), begin (allocate active experiment run directory and record input hashes), record (finalize experiment run and link artifacts to workflow step), recall (search prior project experiment runs)",
 		),
 	"workflow_id?": type("string").describe(
-		"Workflow identifier to export (optional for status/manifest/clean, will pick most recent if omitted)",
+		"Workflow identifier (required for begin/record; optional for export/status/manifest/clean/recall)",
 	),
 	"id?": type("string").describe("Alias for workflow_id"),
 	"workspace_path?": type("string").describe("Target workspace directory (defaults to '.reverse' in project root)"),
@@ -40,17 +46,56 @@ const reverseWorkspaceSchema = type({
 	"include_protected?": type("boolean").describe(
 		"Request deletion of protected artifacts. Requires explicit confirmation decision via available approval not free boolean.",
 	),
+	"run_id?": type("string").describe("Experiment run identifier (required for record; optional for begin)"),
+	"step_id?": type("string").describe(
+		"Workflow step identifier (required for begin; optional verification for record)",
+	),
+	"purpose?": type("string").describe(
+		"Concise experiment goal and hypothesis/question being tested (required for begin)",
+	),
+	"command?": type("string").describe("Planned execution command for the experiment (required for begin)"),
+	"inputs?": type("string[]").describe("Explicit input file paths consumed by the experiment"),
+	"script_paths?": type("string[]").describe(
+		"Script file paths (existing reused project scripts at begin, or run-local scripts at record)",
+	),
+	"output_paths?": type("string[]").describe(
+		"Output artifact file paths generated inside the run directory (required for succeeded record)",
+	),
+	"exit_code?": type("number.integer").describe(
+		"Process exit code for experiment run (required for record; 0 = succeeded)",
+	),
+	"summary?": type("string").describe(
+		"Empirical result or error summary for the experiment run (required for record)",
+	),
+	"evidence_ids?": type("string[]").describe("Existing evidence ledger IDs associated with this experiment run"),
+	"query?": type("string").describe(
+		"Case-insensitive substring query across purpose, summary, command, and script paths for recall",
+	),
+	"target_hash?": type("string").describe("Exact target SHA-256 filter for recall"),
+	"limit?": type("1 <= number.integer <= 20").describe("Maximum number of recalled runs to return (1-20, default 5)"),
 });
 
 export type ReverseWorkspaceParams = typeof reverseWorkspaceSchema.infer;
 
 export interface ReverseWorkspaceDetails {
-	action: "export" | "status" | "manifest" | "clean";
+	action: "export" | "status" | "manifest" | "clean" | "begin" | "record" | "recall";
 	workspace_dir: string;
 	manifest?: ReverseWorkspaceManifest;
 	inspection?: InspectWorkspaceResult;
 	clean_result?: CleanWorkspaceResult;
 	cancelled?: boolean;
+	workflow_id?: string;
+	step_id?: string;
+	run_id?: string;
+	run_dir?: string;
+	relative_run_dir?: string;
+	paths?: AnalysisRunPaths;
+	run?: AnalysisRunRecord;
+	artifact_refs?: string[];
+	idempotent_retry?: boolean;
+	recent_runs?: AnalysisRunRecall[];
+	recalled_runs?: AnalysisRunRecall[];
+	reusable_script_paths?: string[];
 }
 
 export class ReverseWorkspaceTool implements AgentTool<typeof reverseWorkspaceSchema, ReverseWorkspaceDetails> {
@@ -76,7 +121,7 @@ export class ReverseWorkspaceTool implements AgentTool<typeof reverseWorkspaceSc
 				}
 				return "write";
 			}
-			if (action === "export") {
+			if (action === "export" || action === "begin" || action === "record") {
 				return "write";
 			}
 		}
@@ -323,6 +368,227 @@ export class ReverseWorkspaceTool implements AgentTool<typeof reverseWorkspaceSc
 						action: "clean",
 						workspace_dir: cleanResult.workspace_dir,
 						clean_result: cleanResult,
+					},
+				};
+			}
+
+			case "begin": {
+				const workflowId = params.workflow_id ?? params.id;
+				if (!workflowId) {
+					throw new ToolError("workflow_id is required for 'begin' action.");
+				}
+				if (!params.step_id) {
+					throw new ToolError("step_id is required for 'begin' action.");
+				}
+				if (!params.purpose) {
+					throw new ToolError("purpose is required for 'begin' action.");
+				}
+				if (!params.command) {
+					throw new ToolError("command is required for 'begin' action.");
+				}
+
+				const workflowStore = new ReverseWorkflowStore({ repositoryRoot: projectDir });
+				const beginRes = await beginAnalysisRun({
+					projectDir,
+					workspaceDir: workspacePath,
+					workflowId,
+					stepId: params.step_id,
+					purpose: params.purpose,
+					command: params.command,
+					runId: params.run_id,
+					inputs: params.inputs,
+					scriptPaths: params.script_paths,
+					workflowStore,
+				});
+
+				const lines = [
+					`# Initialized Experiment Run: \`${beginRes.run_id}\``,
+					"",
+					`- **Workflow**: \`${beginRes.workflow_id}\` (step \`${beginRes.step_id}\`)`,
+					`- **Target SHA-256**: \`${beginRes.run.target_sha256}\``,
+					`- **Run Directory**: \`${beginRes.relative_run_dir}\` (\`${beginRes.run_dir}\`)`,
+					`- **Scripts Directory**: \`${beginRes.paths.relative.scripts_dir}\` (\`${beginRes.scripts_dir}\`)`,
+					`- **Dumps Directory**: \`${beginRes.paths.relative.dumps_dir}\` (\`${beginRes.dumps_dir}\`)`,
+					`- **Reports Directory**: \`${beginRes.paths.relative.reports_dir}\` (\`${beginRes.reports_dir}\`)`,
+					`- **Temp Directory**: \`${beginRes.paths.relative.tmp_dir}\` (\`${beginRes.tmp_dir}\`)`,
+					`- **Run Metadata**: \`${beginRes.paths.relative.run_json}\``,
+					`- **Recorded Inputs**: ${beginRes.run.inputs.length}`,
+					`- **Pre-Existing Scripts**: ${beginRes.run.scripts.length}`,
+					`- **Prior Same-Target Runs**: ${beginRes.recent_runs.length}`,
+					`- **Reusable Verified Scripts**: ${beginRes.reusable_script_paths.length}`,
+				];
+
+				if (beginRes.reusable_script_paths.length > 0) {
+					lines.push("");
+					lines.push("## Reusable Script Absolute Paths");
+					for (const scriptAbsPath of beginRes.reusable_script_paths) {
+						lines.push(`- \`${scriptAbsPath}\``);
+					}
+				}
+
+				if (beginRes.recent_runs.length > 0) {
+					lines.push("");
+					lines.push("## Recent Runs for Same Target SHA-256");
+					for (const item of beginRes.recent_runs) {
+						const exitInfo = item.run.exit_code !== undefined ? `, exit=${item.run.exit_code}` : "";
+						lines.push(
+							`- \`${item.run.id}\` (\`${item.run.status}\`${exitInfo}, reuse: \`${item.reuse_status}\`, step \`${item.run.step_id}\`): ${item.run.purpose}`,
+						);
+						if (item.run.summary) {
+							lines.push(`  - Summary: ${item.run.summary}`);
+						}
+						for (const reason of item.reuse_reasons) {
+							lines.push(`  - Reuse Check: ${reason}`);
+						}
+					}
+				}
+
+				return {
+					content: [{ type: "text", text: lines.join("\n") }],
+					details: {
+						action: "begin",
+						workspace_dir: beginRes.workspace_dir,
+						workflow_id: beginRes.workflow_id,
+						step_id: beginRes.step_id,
+						run_id: beginRes.run_id,
+						run_dir: beginRes.run_dir,
+						relative_run_dir: beginRes.relative_run_dir,
+						paths: beginRes.paths,
+						run: beginRes.run,
+						recent_runs: beginRes.recent_runs,
+						reusable_script_paths: beginRes.reusable_script_paths,
+					},
+				};
+			}
+
+			case "record": {
+				const workflowId = params.workflow_id ?? params.id;
+				if (!workflowId) {
+					throw new ToolError("workflow_id is required for 'record' action.");
+				}
+				if (!params.run_id) {
+					throw new ToolError("run_id is required for 'record' action.");
+				}
+				if (params.exit_code === undefined || params.exit_code === null) {
+					throw new ToolError("exit_code is required for 'record' action.");
+				}
+				if (!params.summary) {
+					throw new ToolError("summary is required for 'record' action.");
+				}
+
+				const workflowStore = new ReverseWorkflowStore({ repositoryRoot: projectDir });
+				const evidenceStore = new EvidenceStore({ repositoryRoot: projectDir });
+				const recordRes = await recordAnalysisRun({
+					projectDir,
+					workspaceDir: workspacePath,
+					workflowId,
+					runId: params.run_id,
+					exitCode: params.exit_code,
+					summary: params.summary,
+					stepId: params.step_id,
+					purpose: params.purpose,
+					command: params.command,
+					inputs: params.inputs,
+					scriptPaths: params.script_paths,
+					outputPaths: params.output_paths,
+					evidenceIds: params.evidence_ids,
+					workflowStore,
+					evidenceStore,
+				});
+
+				const lines = [
+					`# Recorded Experiment Run: \`${recordRes.run_id}\` (${recordRes.run.status})`,
+					"",
+					`- **Workflow**: \`${recordRes.workflow_id}\` (step \`${recordRes.step_id}\`)`,
+					`- **Status**: \`${recordRes.run.status}\` (exit code ${recordRes.run.exit_code})`,
+					`- **Summary**: ${recordRes.run.summary}`,
+					`- **Run Metadata**: \`${recordRes.paths.relative.run_json}\``,
+					`- **Scripts Recorded**: ${recordRes.run.scripts.length}`,
+					`- **Outputs Recorded**: ${recordRes.run.outputs.length}`,
+					`- **Linked Workflow Artifact Refs**: ${recordRes.artifact_refs.length}`,
+				];
+
+				return {
+					content: [{ type: "text", text: lines.join("\n") }],
+					details: {
+						action: "record",
+						workspace_dir: recordRes.workspace_dir,
+						workflow_id: recordRes.workflow_id,
+						step_id: recordRes.step_id,
+						run_id: recordRes.run_id,
+						run_dir: recordRes.run_dir,
+						relative_run_dir: recordRes.relative_run_dir,
+						paths: recordRes.paths,
+						run: recordRes.run,
+						artifact_refs: recordRes.artifact_refs,
+						idempotent_retry: recordRes.idempotent_retry,
+					},
+				};
+			}
+
+			case "recall": {
+				const workflowId = params.workflow_id ?? params.id;
+				const recalledRuns = await recallAnalysisRuns(projectDir, {
+					workspaceDir: workspacePath,
+					workflowId,
+					targetHash: params.target_hash,
+					query: params.query,
+					limit: params.limit,
+				});
+				const reusableScriptPaths = Array.from(new Set(recalledRuns.flatMap(item => item.reusable_script_paths)));
+
+				const lines = [
+					`# Recalled Experiment Runs: \`${workspacePath}\``,
+					"",
+					`- **Matched Runs**: ${recalledRuns.length}`,
+					`- **Reusable Verified Scripts**: ${reusableScriptPaths.length}`,
+				];
+				if (workflowId) lines.push(`- **Workflow Filter**: \`${workflowId}\``);
+				if (params.target_hash) lines.push(`- **Target SHA-256 Filter**: \`${params.target_hash}\``);
+				if (params.query) lines.push(`- **Query Filter**: \`${params.query}\``);
+
+				if (reusableScriptPaths.length > 0) {
+					lines.push("");
+					lines.push("## Reusable Script Absolute Paths");
+					for (const scriptAbsPath of reusableScriptPaths) {
+						lines.push(`- \`${scriptAbsPath}\``);
+					}
+				}
+
+				if (recalledRuns.length === 0) {
+					lines.push("");
+					lines.push("No matching managed experiment runs found.");
+				} else {
+					lines.push("");
+					lines.push("## Experiment History");
+					for (const item of recalledRuns) {
+						const exitInfo = item.run.exit_code !== undefined ? `, exit=${item.run.exit_code}` : "";
+						lines.push(
+							`- \`${item.run.id}\` (workflow \`${item.run.workflow_id}\`, step \`${item.run.step_id}\`, status \`${item.run.status}\`${exitInfo}, reuse \`${item.reuse_status}\`)`,
+						);
+						lines.push(`  - Target SHA-256: \`${item.run.target_sha256}\``);
+						lines.push(`  - Purpose: ${item.run.purpose}`);
+						lines.push(`  - Command: \`${item.run.command}\``);
+						if (item.run.summary) {
+							lines.push(`  - Summary: ${item.run.summary}`);
+						}
+						for (const reason of item.reuse_reasons) {
+							lines.push(`  - Reuse Check: ${reason}`);
+						}
+						if (item.reusable_script_paths.length > 0) {
+							lines.push(`  - Reusable Scripts: ${item.reusable_script_paths.map(p => `\`${p}\``).join(", ")}`);
+						}
+					}
+				}
+
+				return {
+					content: [{ type: "text", text: lines.join("\n") }],
+					details: {
+						action: "recall",
+						workspace_dir: path.resolve(projectDir, workspacePath),
+						...(workflowId ? { workflow_id: workflowId } : {}),
+						recalled_runs: recalledRuns,
+						reusable_script_paths: reusableScriptPaths,
 					},
 				};
 			}

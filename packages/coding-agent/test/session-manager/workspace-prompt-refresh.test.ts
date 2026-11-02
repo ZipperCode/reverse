@@ -8,6 +8,8 @@ import { createAgentSession } from "@reverse/coding-agent/sdk";
 import { AuthStorage } from "@reverse/coding-agent/session/auth-storage";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
 import { TempDir } from "@reverse/utils";
+import { ReverseWorkflowTool, ReverseWorkspaceTool, type ToolSession } from "@reverse/coding-agent/tools";
+import { ReverseWorkflowStore } from "@reverse/coding-agent/reverse-workflow";
 
 import { cfgWorkspaceAdditionalDirectories } from "@reverse/coding-agent/session/context-settings";
 
@@ -143,6 +145,109 @@ describe("workspace directories in the system prompt", () => {
 				await session.dispose();
 			}
 		} finally {
+			auth.close();
+			dir.removeSync();
+		}
+	});
+
+	it("loads historical experiments into new sessions and refreshes only dynamic project context", async () => {
+		const dir = TempDir.createSync("@investigation-prompt-");
+		const auth = await AuthStorage.create(path.join(dir.path(), "auth.db"));
+		const model = createMockModel({ id: "text", handler: () => ({ content: ["ok"] }) });
+		const settings = Settings.isolated({
+			"compaction.enabled": false,
+			"todo.enabled": false,
+			"retry.enabled": false,
+			"tools.xdev": false,
+		});
+		const openSession = async () =>
+			(
+				await createAgentSession({
+					cwd: dir.path(),
+					agentDir: dir.path(),
+					authStorage: auth,
+					modelRegistry: new ModelRegistry(auth, path.join(dir.path(), "models.yml")),
+					model,
+					settings,
+					sessionManager: SessionManager.inMemory(dir.path()),
+					disableExtensionDiscovery: true,
+					enableMCP: false,
+					enableLsp: false,
+					skills: [],
+					rules: [],
+					contextFiles: [],
+				})
+			).session;
+		try {
+			auth.keys.setRuntime("mock", "test-key");
+			const initial = await openSession();
+			let initialPrompt: string[];
+			try {
+				await initial.prompt("noop");
+				initialPrompt = model.calls?.at(-1)?.context?.systemPrompt as string[];
+				expect(initialPrompt.join("\n")).not.toContain("<investigation-brief>");
+				expect(fs.existsSync(path.join(dir.path(), ".reverse"))).toBe(false);
+			} finally {
+				await initial.dispose();
+			}
+
+			const target = path.join(dir.path(), "sample.js");
+			fs.writeFileSync(target, "function observedCall() { return 1; }\n");
+			const toolSession: ToolSession = {
+				cwd: dir.path(),
+				hasUI: true,
+				settings,
+				getSessionFile: () => null,
+				getSessionSpawns: () => "*",
+			};
+			const created = await new ReverseWorkflowTool(toolSession).execute("create", {
+				action: "create",
+				target,
+				format: "JS",
+				goal: "Inspect historical caller",
+			});
+			const workflow = created.details.workflow!;
+			const workspace = new ReverseWorkspaceTool(toolSession);
+			const begun = await workspace.execute("begin", {
+				action: "begin",
+				workflow_id: workflow.id,
+				step_id: workflow.steps[0].id,
+				purpose: "Compare prior caller observation",
+				command: "bun caller.js",
+			});
+			await workspace.execute("record", {
+				action: "record",
+				workflow_id: workflow.id,
+				run_id: begun.details.run_id!,
+				exit_code: 1,
+				summary: "Missing triggering input; next inspect event parameters",
+			});
+
+			const resumed = await openSession();
+			try {
+				await resumed.prompt("noop");
+				const historical = model.calls?.at(-1)?.context?.systemPrompt as string[];
+				expect(historical[0]).toBe(initialPrompt![0]);
+				expect(historical.join("\n")).toContain("<investigation-brief>");
+				expect(historical.join("\n")).toContain("Compare prior caller observation");
+				expect(historical.join("\n")).toContain("Missing triggering input");
+				expect(historical.join("\n")).toContain(workflow.target_sha256!);
+
+				fs.writeFileSync(begun.details.paths!.run_json, "{broken json");
+				await resumed.refreshBaseSystemPrompt();
+				await resumed.prompt("noop");
+				const refreshed = model.calls?.at(-1)?.context?.systemPrompt as string[];
+				expect(refreshed[0]).toBe(initialPrompt![0]);
+				expect(refreshed.join("\n")).not.toContain("Missing triggering input");
+				expect(refreshed.join("\n")).toContain("<investigation-brief>");
+			} finally {
+				await resumed.dispose();
+			}
+		} finally {
+			fs.rmSync(new ReverseWorkflowStore({ repositoryRoot: dir.path() }).projectDirectory, {
+				recursive: true,
+				force: true,
+			});
 			auth.close();
 			dir.removeSync();
 		}

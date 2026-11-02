@@ -12,12 +12,13 @@ import {
 	learnFromEvidenceAndWorkflows,
 	type ReverseKnowledgeRecord,
 } from "../reverse-knowledge";
-import { ReverseRuntimeSessionStore } from "../reverse-runtime-session";
+import { ReverseRuntimeSessionStore, type RuntimeSessionRecord } from "../reverse-runtime-session";
 import {
 	type UniversalDynamicEvent,
 	type DynamicEventSource,
 	DYNAMIC_EVENT_SOURCES,
 	isDynamicLocator,
+	parseDynamicLocator,
 	normalizeDynamicEvent,
 	filterDynamicEvents,
 	dynamicEventToFactInput,
@@ -57,7 +58,13 @@ export const reverseDynamicEvidenceSchema = type({
 	"advance_workflow?": type("boolean").describe(
 		"Whether to mark the associated workflow step as completed if backed by verified evidence",
 	),
-	"hypothesis_id?": type("string").describe("Hypothesis ID in Evidence ledger to verify with these dynamic facts"),
+	"hypothesis_id?": type("string").describe("Hypothesis ID in Evidence ledger to verify with ingested dynamic facts"),
+	"fact_ids?": type("string[]").describe(
+		"Non-empty array of ingested dynamic FactEvidence IDs from the target session supporting hypothesis verification",
+	),
+	"subject?": type("string").describe(
+		"Subject identifier (e.g. function, endpoint, symbol, or protocol field) under investigation",
+	),
 	"conclusion?": type("string").describe("Confirmed deductive conclusion text to record when verifying a hypothesis"),
 	"method?": type("string").describe(
 		"Experimental dynamic method, e.g. 'Frida JNI hook', 'CDP network intercept', 'DAP breakpoint'",
@@ -66,7 +73,7 @@ export const reverseDynamicEvidenceSchema = type({
 	"result?": type("string").describe("Observed empirical result, output string, decrypted buffer, or register delta"),
 	"reproducibility?": type("string").describe("Reproducibility metric or description, e.g. '100% (5/5 runs)'"),
 	"learn?": type("boolean").describe(
-		"Whether to automatically promote verified conclusions into reusable reverse knowledge (default true)",
+		"Whether to automatically promote the newly verified conclusion into reusable reverse knowledge (default true)",
 	),
 });
 
@@ -95,6 +102,48 @@ export interface IngestDynamicEvidenceDetails {
 
 export interface ReverseDynamicEvidenceToolOptions {
 	stateRoot?: string;
+}
+
+const SOURCE_BY_FACT_TOOL: Readonly<Record<string, DynamicEventSource>> = {
+	frida_session: "frida",
+	frida: "frida",
+	browser_reverse_session: "browser",
+	browser: "browser",
+	debug: "dap",
+	dap: "dap",
+	unidbg: "unidbg",
+};
+
+function resolveSessionDynamicSource(sessionRecord: RuntimeSessionRecord): DynamicEventSource | undefined {
+	if (sessionRecord.kind === "frida" || sessionRecord.kind === "browser" || sessionRecord.kind === "dap") {
+		return sessionRecord.kind;
+	}
+	const metaSource = sessionRecord.metadata?.source;
+	if (typeof metaSource === "string" && DYNAMIC_EVENT_SOURCES.includes(metaSource as DynamicEventSource)) {
+		return metaSource as DynamicEventSource;
+	}
+	if (sessionRecord.id.includes("unidbg") || sessionRecord.recovery_hints?.restore_tool === "unidbg") {
+		return "unidbg";
+	}
+	return undefined;
+}
+
+function resolveFactDynamicSource(fact: FactEvidence): DynamicEventSource | undefined {
+	const mapped = SOURCE_BY_FACT_TOOL[fact.sourceTool];
+	if (mapped) {
+		return mapped;
+	}
+	if (fact.sourceTool === "reverse_dynamic_evidence") {
+		if (Array.isArray(fact.tags)) {
+			for (const tag of fact.tags) {
+				if (DYNAMIC_EVENT_SOURCES.includes(tag as DynamicEventSource)) {
+					return tag as DynamicEventSource;
+				}
+			}
+		}
+		return "custom";
+	}
+	return undefined;
 }
 
 export class ReverseDynamicEvidenceTool implements AgentTool<
@@ -129,16 +178,8 @@ export class ReverseDynamicEvidenceTool implements AgentTool<
 
 		const cwd = this.session.cwd;
 		const action = params.action;
-		const sessionId = params.session_id?.trim() || "dynamic_session";
-		const source: DynamicEventSource =
-			(params.source as DynamicEventSource) ||
-			(sessionId.startsWith("runt_frida") || sessionId.includes("frida")
-				? "frida"
-				: sessionId.startsWith("browser") || sessionId.includes("browser")
-					? "browser"
-					: sessionId.startsWith("dap_") || sessionId.includes("dap")
-						? "dap"
-						: "custom");
+		const rawSessionId = params.session_id?.trim();
+		const sessionId = rawSessionId || "dynamic_session";
 		const target = params.target?.trim();
 		const limit = Math.min(Math.max(params.limit ?? 20, 1), 100);
 
@@ -147,17 +188,34 @@ export class ReverseDynamicEvidenceTool implements AgentTool<
 		const workflowStore = new ReverseWorkflowStore({ repositoryRoot: cwd, stateRoot: this.stateRoot });
 		const knowledgeStore = new ReverseKnowledgeStore({ repositoryRoot: cwd, stateRoot: this.stateRoot });
 		const runtimeSessionStore = ReverseRuntimeSessionStore.forSession(cwd, this.stateRoot);
+		const sessionRecord = rawSessionId ? await runtimeSessionStore.get(rawSessionId).catch(() => null) : null;
+		const sessionSource = sessionRecord ? resolveSessionDynamicSource(sessionRecord) : undefined;
+		const source: DynamicEventSource =
+			(params.source as DynamicEventSource) ||
+			sessionSource ||
+			(sessionId.startsWith("runt_frida") || sessionId.includes("frida")
+				? "frida"
+				: sessionId.startsWith("browser") || sessionId.includes("browser")
+					? "browser"
+					: sessionId.startsWith("dap_") || sessionId.includes("dap")
+						? "dap"
+						: sessionId.includes("unidbg")
+							? "unidbg"
+							: "custom");
 
 		switch (action) {
 			case "events":
 			case "ingest": {
 				// 1. Gather raw events from input or session manager / runtime store
-				const rawEvents = await this.gatherRawEvents(params, source, sessionId, runtimeSessionStore);
+				const { rawEvents, trustedSessionEvent } = await this.gatherRawEvents(
+					params,
+					source,
+					sessionId,
+					sessionRecord,
+				);
 
 				// 2. Normalize events into UniversalDynamicEvent[]
 				const normalizedEvents = this.normalizeEventsList(rawEvents, source, sessionId, target);
-
-				// 3. Filter and page events
 				const filteredEvents = filterDynamicEvents(normalizedEvents, {
 					kind: params.kind,
 					channel: params.channel,
@@ -223,6 +281,8 @@ export class ReverseDynamicEvidenceTool implements AgentTool<
 						target,
 						classification: params.classification,
 						tags: params.tags,
+						subject: params.subject,
+						trustedSessionEvent,
 					});
 					const factRecord = await evidenceStore.addFact(factInput);
 					createdFacts.push(factRecord);
@@ -259,66 +319,6 @@ export class ReverseDynamicEvidenceTool implements AgentTool<
 					}
 				}
 
-				// If hypothesis_id and conclusion provided, verify immediately
-				let conclusionRecord: ConclusionEvidence | undefined;
-				let learnedRecords: ReverseKnowledgeRecord[] = [];
-				if (params.hypothesis_id && params.conclusion) {
-					const verifyInput = {
-						hypothesisId: params.hypothesis_id,
-						method: params.method || `Dynamic telemetry via ${source}`,
-						command: params.command || `reverse_dynamic_evidence(session_id: "${sessionId}")`,
-						result:
-							params.result ||
-							`Captured ${createdFacts.length} empirical dynamic events (${createdFactIds.join(", ")})`,
-						conclusion: params.conclusion,
-						reproducibility: params.reproducibility || "100%",
-						status: "verified" as const,
-						facts: createdFactIds,
-					};
-					conclusionRecord = await evidenceStore.verifyHypothesis(verifyInput);
-
-					if (params.learn !== false) {
-						const learnRes = await learnFromEvidenceAndWorkflows(
-							evidenceStore,
-							workflowStore,
-							knowledgeStore,
-							this.session,
-							{ workflow_id: params.workflow_id },
-						);
-						learnedRecords = learnRes.created_records;
-						for (const record of learnedRecords) {
-							let changed = false;
-							if (!record.metadata) {
-								record.metadata = {};
-								changed = true;
-							}
-							if (record.metadata.dynamic_verified !== true) {
-								record.metadata.dynamic_verified = true;
-								changed = true;
-							}
-							if (
-								!record.metadata.dynamic_locators ||
-								(record.metadata.dynamic_locators as string[]).length === 0
-							) {
-								if (createdFacts.length > 0) {
-									record.metadata.dynamic_locators = createdFacts.map(f => f.locator);
-									changed = true;
-								}
-							}
-							if (
-								!record.metadata.dynamic_sessions ||
-								(record.metadata.dynamic_sessions as string[]).length === 0
-							) {
-								record.metadata.dynamic_sessions = [sessionId];
-								changed = true;
-							}
-							if (changed) {
-								await knowledgeStore.save(record);
-							}
-						}
-					}
-				}
-
 				const lines: string[] = [
 					`Ingested ${createdFacts.length} dynamic fact(s) into Evidence ledger from session '${sessionId}' (${source}):`,
 				];
@@ -327,17 +327,6 @@ export class ReverseDynamicEvidenceTool implements AgentTool<
 				}
 				if (stepUpdated) {
 					lines.push(`\nAttached evidence facts to workflow '${params.workflow_id}', step '${params.step_id}'.`);
-				}
-				if (conclusionRecord) {
-					lines.push(
-						`\nVerified hypothesis '${params.hypothesis_id}' -> Conclusion [${conclusionRecord.id}]: ${conclusionRecord.conclusion}`,
-					);
-				}
-				if (learnedRecords.length > 0) {
-					lines.push(`Promoted ${learnedRecords.length} verified outcome(s) into reusable reverse knowledge:`);
-					for (const kn of learnedRecords) {
-						lines.push(`  - [${kn.id}] ${kn.title} (${kn.pattern || "verified"})`);
-					}
 				}
 
 				return {
@@ -351,37 +340,190 @@ export class ReverseDynamicEvidenceTool implements AgentTool<
 						totalBuffered: normalizedEvents.length,
 						factIds: createdFactIds,
 						facts: createdFacts,
-						conclusionId: conclusionRecord?.id,
-						conclusion: conclusionRecord,
 						workflowId: params.workflow_id,
 						stepId: params.step_id,
 						stepUpdated,
-						knowledgeCreatedCount: learnedRecords.length,
-						knowledgeRecords: learnedRecords,
 					},
 				};
 			}
 
 			case "verify": {
-				if (!params.hypothesis_id) {
+				if (!rawSessionId) {
+					throw new ToolError("Action 'verify' requires an explicit 'session_id'.");
+				}
+				const hypothesisId = params.hypothesis_id?.trim();
+				if (!hypothesisId) {
 					throw new ToolError("Action 'verify' requires 'hypothesis_id'.");
 				}
-				if (!params.conclusion) {
+				const factIds = Array.isArray(params.fact_ids)
+					? Array.from(
+							new Set(
+								params.fact_ids
+									.map(id => (typeof id === "string" ? id.trim() : ""))
+									.filter((id): id is string => id.length > 0),
+							),
+						)
+					: [];
+				if (factIds.length === 0) {
+					throw new ToolError("Action 'verify' requires a non-empty 'fact_ids' array.");
+				}
+				const conclusionText = params.conclusion?.trim();
+				if (!conclusionText) {
 					throw new ToolError("Action 'verify' requires 'conclusion'.");
 				}
+				const method = params.method?.trim();
+				if (!method) {
+					throw new ToolError("Action 'verify' requires 'method'.");
+				}
+				const command = params.command?.trim();
+				if (!command) {
+					throw new ToolError("Action 'verify' requires 'command'.");
+				}
+				const resultText = params.result?.trim();
+				if (!resultText) {
+					throw new ToolError("Action 'verify' requires 'result'.");
+				}
 
-				const method = params.method || `Dynamic observation via ${source}`;
-				const command = params.command || `reverse_dynamic_evidence(session_id: "${sessionId}")`;
-				const resultText = params.result || "Verified through dynamic session trace telemetry";
+				if (!sessionRecord) {
+					throw new ToolError(`Runtime session '${rawSessionId}' is not registered in the runtime session store.`);
+				}
+
+				const explicitSource = params.source as DynamicEventSource | undefined;
+				if (explicitSource && sessionSource && explicitSource !== sessionSource) {
+					throw new ToolError(
+						`Source mismatch: verify source '${explicitSource}' does not match session '${rawSessionId}' source '${sessionSource}'.`,
+					);
+				}
+				const expectedSource = explicitSource ?? sessionSource;
+
+				const hypRecord = await evidenceStore.getRecord(hypothesisId);
+				if (!hypRecord) {
+					throw new ToolError(`Hypothesis '${hypothesisId}' not found in evidence ledger.`);
+				}
+				if (hypRecord.kind !== "hypothesis") {
+					throw new ToolError(
+						`Target evidence '${hypothesisId}' is of kind '${hypRecord.kind}', not 'hypothesis'.`,
+					);
+				}
+
+				const ledgerValidity = await evidenceStore.resolveValidity();
+				const hypValidity = ledgerValidity.get(hypothesisId);
+				if (hypValidity?.isRefuted) {
+					throw new ToolError(`Cannot verify hypothesis '${hypothesisId}': hypothesis has been refuted.`);
+				}
+				if (hypValidity?.isStale) {
+					throw new ToolError(`Cannot verify hypothesis '${hypothesisId}': hypothesis is stale or invalidated.`);
+				}
+
+				const hypTarget = hypRecord.target?.trim();
+				if (target && (!hypTarget || target !== hypTarget)) {
+					throw new ToolError(
+						`Target mismatch: cannot rebind hypothesis target '${hypTarget ?? "none"}' to '${target}' during verify.`,
+					);
+				}
+
+				const hypSubject = hypRecord.subject ?? hypRecord.context?.subject;
+				const paramSubject = params.subject?.trim();
+				if (hypSubject && paramSubject && hypSubject !== paramSubject) {
+					throw new ToolError(
+						`Subject mismatch: verify subject '${paramSubject}' does not match hypothesis subject '${hypSubject}'.`,
+					);
+				}
+				const requiredSubject = hypSubject ?? paramSubject;
+				const hypHash = hypRecord.targetSha256 ?? hypRecord.context?.executionBinding?.artifactSha256;
+
+				let inferredFactSource: DynamicEventSource | undefined;
+				let inferredFactTarget: string | undefined;
+				let inferredFactHash: string | undefined;
+				for (const fId of factIds) {
+					const rec = await evidenceStore.getRecord(fId);
+					if (!rec) {
+						throw new ToolError(`Supporting evidence fact '${fId}' not found in ledger.`);
+					}
+					if (rec.kind !== "fact") {
+						throw new ToolError(`Supporting evidence record '${fId}' is of kind '${rec.kind}', expected 'fact'.`);
+					}
+					const parsedLoc = parseDynamicLocator(rec.locator);
+					if (!parsedLoc) {
+						throw new ToolError(
+							`Fact '${fId}' does not have a valid dynamic session locator ('${rec.locator}').`,
+						);
+					}
+					if (parsedLoc.sessionId !== rawSessionId) {
+						throw new ToolError(
+							`Fact '${fId}' locator session '${parsedLoc.sessionId}' does not match verify session_id '${rawSessionId}'.`,
+						);
+					}
+					const factSource = resolveFactDynamicSource(rec);
+					if (!factSource) {
+						throw new ToolError(
+							`Fact '${fId}' (sourceTool: '${rec.sourceTool}') is not a dynamic session observation fact.`,
+						);
+					}
+					if (expectedSource && factSource !== expectedSource) {
+						throw new ToolError(
+							`Fact '${fId}' source '${factSource}' does not match expected dynamic source '${expectedSource}'.`,
+						);
+					}
+					if (inferredFactSource && factSource !== inferredFactSource) {
+						throw new ToolError(
+							`Fact '${fId}' source '${factSource}' conflicts with earlier fact source '${inferredFactSource}'.`,
+						);
+					}
+					inferredFactSource = factSource;
+
+					if (hypTarget) {
+						if (!rec.target || rec.target !== hypTarget) {
+							throw new ToolError(
+								`Fact '${fId}' target '${rec.target ?? "none"}' does not match hypothesis target '${hypTarget}'.`,
+							);
+						}
+					} else if (rec.target) {
+						if (inferredFactTarget && rec.target !== inferredFactTarget) {
+							throw new ToolError(
+								`Fact '${fId}' target '${rec.target}' conflicts with earlier fact target '${inferredFactTarget}'.`,
+							);
+						}
+						inferredFactTarget = rec.target;
+					}
+
+					const recHash = rec.targetSha256 ?? rec.context?.executionBinding?.artifactSha256;
+					if (!hypHash && recHash) {
+						if (inferredFactHash && recHash.toLowerCase() !== inferredFactHash.toLowerCase()) {
+							throw new ToolError(
+								`Fact '${fId}' target SHA-256 '${recHash}' conflicts with earlier fact SHA-256 '${inferredFactHash}'.`,
+							);
+						}
+						inferredFactHash = recHash;
+					}
+				}
+
+				const supportEval = await evidenceStore.evaluateSupport(factIds, {
+					requiredKinds: ["fact"],
+					minAssurance: "dynamic_call_observation",
+					...(requiredSubject ? { requiredSubject } : {}),
+					...(hypHash ? { requiredTargetSha256: hypHash } : {}),
+					requireZeroExitStages: true,
+				});
+				if (!supportEval.valid) {
+					throw new ToolError(
+						`Cannot verify hypothesis '${hypothesisId}' with dynamic evidence: ${supportEval.reason ?? "supporting facts failed validation"}`,
+					);
+				}
 
 				const conclusionRecord = await evidenceStore.verifyHypothesis({
-					hypothesisId: params.hypothesis_id,
+					hypothesisId,
 					method,
 					command,
 					result: resultText,
-					conclusion: params.conclusion,
-					reproducibility: params.reproducibility || "100%",
+					conclusion: conclusionText,
+					...(params.reproducibility?.trim() ? { reproducibility: params.reproducibility.trim() } : {}),
 					status: "verified",
+					facts: factIds,
+					...(hypTarget ? { target: hypTarget } : {}),
+					...(hypHash ? { targetSha256: hypHash } : {}),
+					...(requiredSubject ? { subject: requiredSubject } : {}),
+					assurance: "dynamic_call_observation",
 				});
 
 				let learnedRecords: ReverseKnowledgeRecord[] = [];
@@ -391,30 +533,12 @@ export class ReverseDynamicEvidenceTool implements AgentTool<
 						workflowStore,
 						knowledgeStore,
 						this.session,
-						{ workflow_id: params.workflow_id },
+						{
+							workflow_id: params.workflow_id,
+							conclusion_ids: [conclusionRecord.id],
+						},
 					);
 					learnedRecords = learnRes.created_records;
-					for (const record of learnedRecords) {
-						let changed = false;
-						if (!record.metadata) {
-							record.metadata = {};
-							changed = true;
-						}
-						if (record.metadata.dynamic_verified !== true) {
-							record.metadata.dynamic_verified = true;
-							changed = true;
-						}
-						if (
-							!record.metadata.dynamic_sessions ||
-							(record.metadata.dynamic_sessions as string[]).length === 0
-						) {
-							record.metadata.dynamic_sessions = [sessionId];
-							changed = true;
-						}
-						if (changed) {
-							await knowledgeStore.save(record);
-						}
-					}
 				}
 
 				let stepUpdated = false;
@@ -423,27 +547,33 @@ export class ReverseDynamicEvidenceTool implements AgentTool<
 					if (wf) {
 						const step = wf.steps.find(s => s.id === params.step_id);
 						if (step) {
-							step.evidence_ids = Array.from(new Set([...(step.evidence_ids ?? []), conclusionRecord.id]));
+							const mergedEvidenceIds = Array.from(
+								new Set([...(step.evidence_ids ?? []), ...factIds, conclusionRecord.id]),
+							);
+							step.evidence_ids = mergedEvidenceIds;
 							if (params.advance_workflow) {
 								await advanceWorkflow(
 									wf,
 									{
 										step_id: params.step_id,
 										status: "completed",
-										evidence_ids: [conclusionRecord.id],
+										evidence_ids: mergedEvidenceIds,
 									},
 									{ repositoryRoot: cwd, evidenceStore, knowledgeStore },
 								);
 							}
 							step.updated_at = new Date().toISOString();
 							stepUpdated = true;
+							wf.runtime_session_ids = Array.from(new Set([...(wf.runtime_session_ids ?? []), rawSessionId]));
+							wf.updated_at = new Date().toISOString();
 							await workflowStore.save(wf);
 						}
 					}
 				}
 
+				const resolvedSource = expectedSource ?? inferredFactSource ?? source;
 				const lines: string[] = [
-					`Verified hypothesis '${params.hypothesis_id}' -> Conclusion [${conclusionRecord.id}]:`,
+					`Verified hypothesis '${hypothesisId}' -> Conclusion [${conclusionRecord.id}]:`,
 					`  Conclusion: ${conclusionRecord.conclusion}`,
 					`  Method: ${conclusionRecord.method}`,
 					`  Result: ${conclusionRecord.result}`,
@@ -459,10 +589,11 @@ export class ReverseDynamicEvidenceTool implements AgentTool<
 					content: [{ type: "text", text: lines.join("\n") }],
 					details: {
 						action: "verify",
-						sessionId,
-						source,
-						target,
-						eventsCount: 0,
+						sessionId: rawSessionId,
+						source: resolvedSource,
+						target: hypTarget,
+						eventsCount: factIds.length,
+						factIds,
 						conclusionId: conclusionRecord.id,
 						conclusion: conclusionRecord,
 						workflowId: params.workflow_id,
@@ -544,10 +675,13 @@ export class ReverseDynamicEvidenceTool implements AgentTool<
 		params: ReverseDynamicEvidenceParams,
 		source: DynamicEventSource,
 		sessionId: string,
-		runtimeSessionStore: ReverseRuntimeSessionStore,
-	): Promise<unknown[]> {
-		if (Array.isArray(params.events) && params.events.length > 0) {
-			return params.events;
+		sessionRecord: RuntimeSessionRecord | null,
+	): Promise<{ rawEvents: unknown[]; trustedSessionEvent: boolean }> {
+		if (params.events !== undefined) {
+			return {
+				rawEvents: Array.isArray(params.events) ? params.events : [],
+				trustedSessionEvent: false,
+			};
 		}
 
 		if (source === "dap") {
@@ -557,23 +691,27 @@ export class ReverseDynamicEvidenceTool implements AgentTool<
 				kind: params.kind,
 			});
 			if (dapEvents.events.length > 0) {
-				return dapEvents.events;
+				return {
+					rawEvents: dapEvents.events,
+					trustedSessionEvent: true,
+				};
 			}
 		}
 
-		// Try loading from runtimeSessionStore
-		const sessionRecord = await runtimeSessionStore.get(sessionId).catch(() => null);
 		if (sessionRecord?.metadata) {
 			const metaEvents =
 				sessionRecord.metadata.events ??
 				sessionRecord.metadata.recent_events ??
 				sessionRecord.metadata.capturedEvents;
 			if (Array.isArray(metaEvents) && metaEvents.length > 0) {
-				return metaEvents;
+				return {
+					rawEvents: metaEvents,
+					trustedSessionEvent: true,
+				};
 			}
 		}
 
-		return [];
+		return { rawEvents: [], trustedSessionEvent: false };
 	}
 
 	private normalizeEventsList(

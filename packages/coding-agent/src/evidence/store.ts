@@ -35,7 +35,6 @@ import {
 	MAX_TARGET_LENGTH,
 	MAX_TITLE_LENGTH,
 	EVIDENCE_ASSURANCE_LEVELS,
-	ASSURANCE_LEVEL_RANK,
 	createEvidenceId,
 	encodeEvidenceProjectKey,
 	redactEvidenceText,
@@ -634,45 +633,43 @@ export class EvidenceStore {
 						);
 					}
 				}
-				// 3. Supporting facts validation
-				const supportingFactIds = Array.from(new Set([...(hypothesis.facts ?? []), ...(input.facts ?? [])]));
+				// 3. Supporting facts validation: 任何 verified 结论都必须具备有效 supporting facts
+				const inputFactIds = Array.isArray(input.facts)
+					? input.facts.filter(f => typeof f === "string" && f.trim().length > 0).map(f => f.trim())
+					: [];
+				const supportingFactIds = Array.from(new Set([...(hypothesis.facts ?? []), ...inputFactIds]));
 
-				// High assurance (dynamic_call_observation, algorithm_recovery, independent_reproduction)
-				// requires supporting evidence facts; cannot be established out of thin air
-				if (
-					conclusionContext?.assurance &&
-					ASSURANCE_LEVEL_RANK[conclusionContext.assurance] >= 2 &&
-					supportingFactIds.length === 0
-				) {
+				if (supportingFactIds.length === 0) {
 					throw new ToolError(
-						`Cannot establish verified conclusion with assurance tier '${conclusionContext.assurance}' without supporting evidence facts`,
+						conclusionContext?.assurance
+							? `Cannot establish verified conclusion with assurance tier '${conclusionContext.assurance}' without supporting evidence facts`
+							: "Cannot establish verified conclusion without supporting evidence facts",
 					);
 				}
 
-				if (supportingFactIds.length > 0) {
-					const effectiveTargetSha =
-						input.targetSha256 ??
-						conclusionContext?.executionBinding?.artifactSha256 ??
-						hypothesis.targetSha256 ??
-						hypothesis.context?.executionBinding?.artifactSha256;
+				const effectiveTargetSha =
+					input.targetSha256 ??
+					conclusionContext?.executionBinding?.artifactSha256 ??
+					hypothesis.targetSha256 ??
+					hypothesis.context?.executionBinding?.artifactSha256;
 
-					const effectiveSubject = conclusionSubject ?? hypothesis.subject ?? hypothesis.context?.subject;
+				const effectiveSubject = conclusionSubject ?? hypothesis.subject ?? hypothesis.context?.subject;
 
-					const minAssurance = conclusionContext?.assurance;
+				const minAssurance = conclusionContext?.assurance ?? hypothesis.context?.assurance;
 
-					const evalResult = await evaluateEvidenceSupport(existingRecords, supportingFactIds, {
-						requiredSubject: effectiveSubject,
-						requiredTargetSha256: effectiveTargetSha,
-						minAssurance,
-						requireZeroExitStages: true,
-						requireExhaustiveNegative: isUniversalAbsence,
-					});
+				const evalResult = await evaluateEvidenceSupport(existingRecords, supportingFactIds, {
+					requiredKinds: ["fact"],
+					requiredSubject: effectiveSubject,
+					requiredTargetSha256: effectiveTargetSha,
+					minAssurance,
+					requireZeroExitStages: true,
+					requireExhaustiveNegative: isUniversalAbsence,
+				});
 
-					if (!evalResult.valid) {
-						throw new ToolError(
-							`Cannot establish verified conclusion: supporting evidence failed verification: ${evalResult.reason ?? "invalid evidence"}`,
-						);
-					}
+				if (!evalResult.valid) {
+					throw new ToolError(
+						`Cannot establish verified conclusion: supporting evidence failed verification: ${evalResult.reason ?? "invalid evidence"}`,
+					);
 				}
 			}
 
@@ -708,10 +705,13 @@ export class EvidenceStore {
 				...(invalidatesConclusions && invalidatesConclusions.length > 0 ? { invalidatesConclusions } : {}),
 			};
 
+			const sanitizedInputFacts = Array.isArray(input.facts)
+				? input.facts.filter(f => typeof f === "string" && f.trim().length > 0).map(f => f.trim())
+				: [];
 			const updatedHypothesis: HypothesisEvidence = {
 				...hypothesis,
-				...(input.facts && input.facts.length > 0
-					? { facts: Array.from(new Set([...(hypothesis.facts ?? []), ...input.facts])) }
+				...(sanitizedInputFacts.length > 0
+					? { facts: Array.from(new Set([...(hypothesis.facts ?? []), ...sanitizedInputFacts])) }
 					: {}),
 			};
 

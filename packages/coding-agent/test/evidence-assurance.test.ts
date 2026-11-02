@@ -7,6 +7,7 @@ import { ReverseKnowledgeStore } from "../src/reverse-knowledge/store";
 import { createKnowledgeId } from "../src/reverse-knowledge/contracts";
 import { validateVerifiedOnly, learnFromEvidenceAndWorkflows, applyKnowledge } from "../src/reverse-knowledge/service";
 import { ReverseWorkflowStore } from "../src/reverse-workflow/store";
+import { advanceWorkflow } from "../src/reverse-workflow/progression";
 import { generateFindingsData, generateFindingsMarkdown } from "../src/reverse-workspace/findings";
 
 describe("EvidenceAssurance - Closed #6 evidentiary rigor & refutation cascade", () => {
@@ -251,10 +252,17 @@ describe("EvidenceAssurance - Closed #6 evidentiary rigor & refutation cascade",
 		try {
 			const store = new EvidenceStore({ repositoryRoot: tempDir, stateRoot: tempDir });
 
+			const factBounded = await store.addFact({
+				kind: "fact",
+				sourceTool: "logcat",
+				locator: "logcat:tail_50",
+				content: "Scanned 50 lines of logcat tail; 0 occurrences of sessionViewId",
+			});
 			const hyp = await store.addHypothesis({
 				kind: "hypothesis",
 				claim: "sessionViewId parameter does not exist on PC client",
 				verificationPlan: "grep logcat tail",
+				facts: [factBounded.id],
 			});
 
 			// 1. Claiming universal absence with non-exhaustive search is strictly rejected
@@ -391,10 +399,17 @@ describe("EvidenceAssurance - Closed #6 evidentiary rigor & refutation cascade",
 			const knStore = new ReverseKnowledgeStore({ repositoryRoot: tempDir });
 
 			// 1. Hypothesis: Java native signature binding works
+			const fact1 = await store.addFact({
+				kind: "fact",
+				sourceTool: "frida",
+				locator: "session:s1:seq:1",
+				content: "Observed WirelessSDKSign return end0",
+			});
 			const hyp = await store.addHypothesis({
 				kind: "hypothesis",
 				claim: "Java native signature binding is functional",
 				verificationPlan: "Load library and check return",
+				facts: [fact1.id],
 			});
 
 			// 2. Conclusion 1: Verified (seen start marker or non-null return)
@@ -741,10 +756,17 @@ describe("EvidenceAssurance - Closed #6 evidentiary rigor & refutation cascade",
 			const store = new EvidenceStore({ repositoryRoot: tempDir, stateRoot: tempDir });
 
 			// 1. Setup chain: H1 verified by C1
+			const f1 = await store.addFact({
+				kind: "fact",
+				sourceTool: "triage",
+				locator: "offset:0x100",
+				content: "Initial fact F1",
+			});
 			const h1 = await store.addHypothesis({
 				kind: "hypothesis",
 				claim: "H1 claim",
 				verificationPlan: "test",
+				facts: [f1.id],
 			});
 			const c1 = await store.verifyHypothesis({
 				hypothesisId: h1.id,
@@ -755,23 +777,33 @@ describe("EvidenceAssurance - Closed #6 evidentiary rigor & refutation cascade",
 				status: "verified",
 			});
 
-			// H2 depends on H1
-			const h2 = await store.addHypothesis({
-				kind: "hypothesis",
+			// Legacy ledger entries: H2 referencing H1 and verified by C2 (preserved read-only from existing ledger)
+			const h2 = {
+				id: "ev_hyp_legacy_h2",
+				kind: "hypothesis" as const,
+				title: "[Hypothesis] H2 claim",
+				createdAt: new Date().toISOString(),
 				claim: "H2 claim",
 				verificationPlan: "test",
 				facts: [h1.id],
-			});
-			const c2 = await store.verifyHypothesis({
+			};
+			const c2 = {
+				id: "ev_conc_legacy_c2",
+				kind: "conclusion" as const,
+				title: "[Conclusion] C2 verified",
+				createdAt: new Date().toISOString(),
 				hypothesisId: h2.id,
 				method: "m2",
 				command: "c2",
 				result: "r2",
 				conclusion: "C2 verified",
-				status: "verified",
-			});
+				reproducibility: "not specified",
+				status: "verified" as const,
+				verifiedAt: new Date().toISOString(),
+			};
+			await fs.appendFile(store.ledgerPath, `${JSON.stringify(h2)}\n${JSON.stringify(c2)}\n`, "utf-8");
 
-			// Both H1 and H2 initially verified
+			// Both H1 and H2 initially verified when reading ledger
 			const evalInitial = await store.evaluateSupport([h1.id, h2.id]);
 			expect(evalInitial.valid).toBe(true);
 
@@ -780,6 +812,7 @@ describe("EvidenceAssurance - Closed #6 evidentiary rigor & refutation cascade",
 				kind: "hypothesis",
 				claim: "H3 claim",
 				verificationPlan: "test",
+				facts: [f1.id],
 			});
 			await store.verifyHypothesis({
 				hypothesisId: h3.id,
@@ -814,10 +847,17 @@ describe("EvidenceAssurance - Closed #6 evidentiary rigor & refutation cascade",
 			const store = new EvidenceStore({ repositoryRoot: tempDir, stateRoot: tempDir });
 			const knStore = new ReverseKnowledgeStore({ repositoryRoot: tempDir });
 
+			const factHandshake = await store.addFact({
+				kind: "fact",
+				sourceTool: "pcap_inspect",
+				locator: "pcap:stream_0",
+				content: "Observed 200 OK handshake frame",
+			});
 			const hyp = await store.addHypothesis({
 				kind: "hypothesis",
 				claim: "Protocol handshake",
 				verificationPlan: "handshake test",
+				facts: [factHandshake.id],
 			});
 			const conc = await store.verifyHypothesis({
 				hypothesisId: hyp.id,
@@ -871,6 +911,529 @@ describe("EvidenceAssurance - Closed #6 evidentiary rigor & refutation cascade",
 
 			const applyAfter = await applyKnowledge(knStore, { goal: "CustomProtocolUniqueHandshake" }, store);
 			expect(applyAfter.recommendations.length).toBe(0);
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("rejects verified conclusions with empty facts at default/static assurance, wrong kind, missing, or stale facts while preserving refutations", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ev-assurance-strict-facts-"));
+		try {
+			const store = new EvidenceStore({ repositoryRoot: tempDir, stateRoot: tempDir });
+
+			const hypEmpty = await store.addHypothesis({
+				kind: "hypothesis",
+				claim: "Token validation uses static key",
+				verificationPlan: "Check disassembly",
+			});
+
+			// 1. Default assurance (unspecified) with empty facts must fail
+			await expect(
+				store.verifyHypothesis({
+					hypothesisId: hypEmpty.id,
+					method: "manual review",
+					command: "r2 -qc pdf sample.bin",
+					result: "looks valid",
+					conclusion: "Verified without facts",
+					status: "verified",
+				}),
+			).rejects.toThrow("without supporting evidence facts");
+
+			// 2. Explicit static_candidate assurance with empty facts must also fail
+			await expect(
+				store.verifyHypothesis({
+					hypothesisId: hypEmpty.id,
+					method: "strings scan",
+					command: "strings sample.bin",
+					result: "found string",
+					conclusion: "Static candidate verified without facts",
+					status: "verified",
+					assurance: "static_candidate",
+				}),
+			).rejects.toThrow("without supporting evidence facts");
+
+			// 3. Refutation without supporting facts remains allowed
+			const refConc = await store.verifyHypothesis({
+				hypothesisId: hypEmpty.id,
+				method: "runtime test",
+				command: "./sample.bin",
+				result: "key rejected",
+				conclusion: "Claim refuted empirically",
+				status: "refuted",
+			});
+			expect(refConc.status).toBe("refuted");
+
+			// 4. Missing fact ID must fail
+			const hypChecks = await store.addHypothesis({
+				kind: "hypothesis",
+				claim: "Header magic check",
+				verificationPlan: "Inspect bytes",
+			});
+			await expect(
+				store.verifyHypothesis({
+					hypothesisId: hypChecks.id,
+					method: "xxd",
+					command: "xxd -l 16 sample.bin",
+					result: "bytes read",
+					conclusion: "Header verified",
+					status: "verified",
+					facts: ["ev_fact_missing_nonexistent"],
+				}),
+			).rejects.toThrow("Evidence records not found in ledger");
+
+			// 5. Wrong kind (unknown, hypothesis, or conclusion instead of fact) must fail
+			const unk = await store.addUnknown({
+				kind: "unknown",
+				question: "Where is IV generated?",
+			});
+			await expect(
+				store.verifyHypothesis({
+					hypothesisId: hypChecks.id,
+					method: "review",
+					command: "read",
+					result: "checked",
+					conclusion: "Verified from unknown",
+					status: "verified",
+					facts: [unk.id],
+				}),
+			).rejects.toThrow("permitted kinds [fact]");
+
+			const validFact = await store.addFact({
+				kind: "fact",
+				sourceTool: "triage",
+				locator: "0x0",
+				content: "ELF magic 7f 45 4c 46",
+				assurance: "static_candidate",
+			});
+			const otherHyp = await store.addHypothesis({
+				kind: "hypothesis",
+				claim: "Other verified hypothesis",
+				verificationPlan: "check magic",
+				facts: [validFact.id],
+			});
+			const otherConc = await store.verifyHypothesis({
+				hypothesisId: otherHyp.id,
+				method: "triage",
+				command: "file sample.bin",
+				result: "ELF",
+				conclusion: "Confirmed ELF",
+				status: "verified",
+				assurance: "static_candidate",
+			});
+
+			// Passing a verified hypothesis or conclusion instead of a fact must fail requiredKinds: ["fact"]
+			await expect(
+				store.verifyHypothesis({
+					hypothesisId: hypChecks.id,
+					method: "chain",
+					command: "echo",
+					result: "ok",
+					conclusion: "Tried using hypothesis as fact",
+					status: "verified",
+					facts: [otherHyp.id],
+				}),
+			).rejects.toThrow("permitted kinds [fact]");
+
+			await expect(
+				store.verifyHypothesis({
+					hypothesisId: hypChecks.id,
+					method: "chain",
+					command: "echo",
+					result: "ok",
+					conclusion: "Tried using conclusion as fact",
+					status: "verified",
+					facts: [otherConc.id],
+				}),
+			).rejects.toThrow("permitted kinds [fact]");
+
+			// 6. Stale/explicitly invalidated fact must fail
+			const staleTargetFact = await store.addFact({
+				kind: "fact",
+				sourceTool: "grep",
+				locator: "line:10",
+				content: "Outdated observation",
+			});
+			const invalidatorHyp = await store.addHypothesis({
+				kind: "hypothesis",
+				claim: "Invalidate outdated fact",
+				verificationPlan: "re-check",
+				facts: [validFact.id],
+			});
+			await store.verifyHypothesis({
+				hypothesisId: invalidatorHyp.id,
+				method: "re-check",
+				command: "grep",
+				result: "superseded",
+				conclusion: "Prior observation invalidated",
+				status: "verified",
+				invalidatesConclusions: [staleTargetFact.id],
+			});
+
+			await expect(
+				store.verifyHypothesis({
+					hypothesisId: hypChecks.id,
+					method: "verify stale",
+					command: "grep",
+					result: "seen",
+					conclusion: "Attempt with stale fact",
+					status: "verified",
+					facts: [staleTargetFact.id],
+				}),
+			).rejects.toThrow("stale or superseded");
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("prevents static facts from inflating assurance while keeping unspecified conclusion assurance unspecified", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ev-assurance-no-static-inflation-"));
+		try {
+			const store = new EvidenceStore({ repositoryRoot: tempDir, stateRoot: tempDir });
+
+			const staticFact = await store.addFact({
+				kind: "fact",
+				sourceTool: "r2_inspect",
+				locator: "0x401000",
+				content: "Static xref to AES_encrypt",
+				assurance: "static_candidate",
+			});
+
+			// 1. Unspecified hypothesis + unspecified conclusion keeps conclusion assurance undefined (never inflated)
+			const hypDefault = await store.addHypothesis({
+				kind: "hypothesis",
+				claim: "AES_encrypt symbol referenced in login module",
+				verificationPlan: "Inspect xrefs",
+				facts: [staticFact.id],
+			});
+			const defaultConc = await store.verifyHypothesis({
+				hypothesisId: hypDefault.id,
+				method: "xref review",
+				command: "r2 -qc axt",
+				result: "xref exists",
+				conclusion: "Confirmed static cross-reference",
+				status: "verified",
+			});
+			expect(defaultConc.context?.assurance).toBeUndefined();
+			const evalDefaultForDynamic = await store.evaluateSupport([defaultConc.id, hypDefault.id], {
+				minAssurance: "dynamic_call_observation",
+			});
+			expect(evalDefaultForDynamic.valid).toBe(false);
+
+			// 2. Hypothesis requesting dynamic_call_observation rejects both explicit dynamic and omitted assurance when backed only by static fact
+			const hypDynamicClaim = await store.addHypothesis({
+				kind: "hypothesis",
+				claim: "AES_encrypt is invoked during login",
+				verificationPlan: "Hook AES_encrypt at runtime",
+				assurance: "dynamic_call_observation",
+				facts: [staticFact.id],
+			});
+
+			await expect(
+				store.verifyHypothesis({
+					hypothesisId: hypDynamicClaim.id,
+					method: "xref review",
+					command: "r2 -qc axt",
+					result: "xref exists",
+					conclusion: "Claiming dynamic call from static xref",
+					status: "verified",
+					assurance: "dynamic_call_observation",
+				}),
+			).rejects.toThrow("Evidence records do not meet minimum assurance tier 'dynamic_call_observation'");
+
+			await expect(
+				store.verifyHypothesis({
+					hypothesisId: hypDynamicClaim.id,
+					method: "xref review",
+					command: "r2 -qc axt",
+					result: "xref exists",
+					conclusion: "Omitting conclusion assurance on dynamic hypothesis with static fact",
+					status: "verified",
+				}),
+			).rejects.toThrow("Evidence records do not meet minimum assurance tier 'dynamic_call_observation'");
+
+			// Explicitly recording static_candidate tier succeeds and caps hypothesis effective assurance
+			const staticConc = await store.verifyHypothesis({
+				hypothesisId: hypDynamicClaim.id,
+				method: "xref review",
+				command: "r2 -qc axt",
+				result: "xref exists",
+				conclusion: "Confirmed static cross-reference candidate only",
+				status: "verified",
+				assurance: "static_candidate",
+			});
+			expect(staticConc.context?.assurance).toBe("static_candidate");
+
+			const evalDynamic = await store.evaluateSupport([hypDynamicClaim.id], {
+				minAssurance: "dynamic_call_observation",
+			});
+			expect(evalDynamic.valid).toBe(false);
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	it("enforces dynamic progression gate: static conclusions and unqualified session facts cannot bypass dynamic gate, qualified dynamic evidence can", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ev-assurance-dyn-gate-"));
+		let wfStore: ReverseWorkflowStore | undefined;
+		try {
+			const targetPath = path.join(tempDir, "sample.apk");
+			await fs.writeFile(targetPath, "PK\x03\x04dynamic-gate-apk");
+			const otherPath = path.join(tempDir, "other.apk");
+			await fs.writeFile(otherPath, "PK\x03\x04different-apk-bytes");
+
+			const store = new EvidenceStore({ repositoryRoot: tempDir, stateRoot: tempDir });
+			wfStore = new ReverseWorkflowStore({ repositoryRoot: tempDir, stateRoot: tempDir });
+
+			const makeWorkflow = async (idSuffix: string) =>
+				await wfStore!.create({
+					id: `wf_dyn_gate_${idSuffix}`,
+					target: "sample.apk",
+					format: "APK",
+					acceptance_criteria: [
+						{
+							id: "ac_dyn",
+							step_id: "dyn_step",
+							title: "Frida runtime hook",
+							subject: "native_sign",
+							min_assurance: "dynamic_call_observation",
+						},
+					],
+					steps: [
+						{
+							id: "dyn_step",
+							title: "Frida runtime hook",
+							tool: "frida",
+							gate: "G2",
+							params_summary: { action: "spawn" },
+							status: "pending",
+							attempts: 0,
+							max_attempts: 3,
+							created_at: new Date().toISOString(),
+							updated_at: new Date().toISOString(),
+						},
+					],
+				});
+			// 1. Static verified conclusion cannot bypass dynamic step gate
+			const staticFact = await store.addFact({
+				kind: "fact",
+				target: "sample.apk",
+				sourceTool: "strings",
+				locator: "offset:0x200",
+				content: "Static symbol Java_com_app_sign",
+				subject: "native_sign",
+				assurance: "static_candidate",
+			});
+			const staticHyp = await store.addHypothesis({
+				kind: "hypothesis",
+				target: "sample.apk",
+				claim: "Symbol exists",
+				verificationPlan: "strings",
+				subject: "native_sign",
+				facts: [staticFact.id],
+			});
+			const staticConc = await store.verifyHypothesis({
+				hypothesisId: staticHyp.id,
+				method: "strings",
+				command: "strings sample.apk",
+				result: "found",
+				conclusion: "Static symbol confirmed",
+				status: "verified",
+				assurance: "static_candidate",
+			});
+
+			const wf1 = await makeWorkflow("static_conc");
+			const resStaticConc = await advanceWorkflow(
+				wf1,
+				{ step_id: "dyn_step", status: "completed", evidence_ids: [staticConc.id] },
+				{ repositoryRoot: tempDir, evidenceStore: store },
+			);
+			expect(resStaticConc.advanced).toBe(false);
+			expect(resStaticConc.status).toBe("held_pending_decision");
+			expect(wf1.steps[0].status).toBe("pending");
+
+			// 2. Session-locator fact WITHOUT dynamic assurance (e.g. console log or untrusted explicit event) cannot bypass
+			const sessionOnlyFact = await store.addFact({
+				kind: "fact",
+				target: "sample.apk",
+				sourceTool: "browser_reverse_session",
+				locator: "session:sess_console:seq:1",
+				content: "console.log('hello')",
+				subject: "native_sign",
+			});
+			const wf2 = await makeWorkflow("session_only");
+			const resSessionOnly = await advanceWorkflow(
+				wf2,
+				{ step_id: "dyn_step", status: "completed", evidence_ids: [sessionOnlyFact.id] },
+				{ repositoryRoot: tempDir, evidenceStore: store },
+			);
+			expect(resSessionOnly.advanced).toBe(false);
+			expect(resSessionOnly.status).toBe("held_pending_decision");
+
+			// 3. Fact WITH dynamic assurance but WITHOUT legal dynamic session locator cannot bypass
+			const nonSessionDynFact = await store.addFact({
+				kind: "fact",
+				target: "sample.apk",
+				sourceTool: "logcat",
+				locator: "logcat:line:42",
+				content: "Observed sign marker",
+				subject: "native_sign",
+				assurance: "dynamic_call_observation",
+			});
+			const wf3 = await makeWorkflow("non_session_loc");
+			const resNonSession = await advanceWorkflow(
+				wf3,
+				{ step_id: "dyn_step", status: "completed", evidence_ids: [nonSessionDynFact.id] },
+				{ repositoryRoot: tempDir, evidenceStore: store },
+			);
+			expect(resNonSession.advanced).toBe(false);
+			expect(resNonSession.status).toBe("held_pending_decision");
+
+			// 4. Dynamic conclusion for wrong target/hash cannot bypass workflow gate for sample.apk
+			const wrongTargetFact = await store.addFact({
+				kind: "fact",
+				target: "other.apk",
+				sourceTool: "frida_session",
+				locator: "session:sess_other:seq:1",
+				content: "Hooked sign on other.apk",
+				subject: "native_sign",
+				assurance: "dynamic_call_observation",
+			});
+			const wrongTargetHyp = await store.addHypothesis({
+				kind: "hypothesis",
+				target: "other.apk",
+				claim: "Other apk sign",
+				verificationPlan: "frida",
+				subject: "native_sign",
+				facts: [wrongTargetFact.id],
+			});
+			const wrongTargetConc = await store.verifyHypothesis({
+				hypothesisId: wrongTargetHyp.id,
+				method: "frida",
+				command: "frida -f other",
+				result: "called",
+				conclusion: "Called on other.apk",
+				status: "verified",
+				assurance: "dynamic_call_observation",
+			});
+			const wf4 = await makeWorkflow("wrong_target");
+			const resWrongTarget = await advanceWorkflow(
+				wf4,
+				{ step_id: "dyn_step", status: "completed", evidence_ids: [wrongTargetConc.id] },
+				{ repositoryRoot: tempDir, evidenceStore: store },
+			);
+			expect(resWrongTarget.advanced).toBe(false);
+			expect(resWrongTarget.status).toBe("held_pending_decision");
+
+			// 4b. Direct dynamic fact with anonymous session: target and no targetSha256 cannot bypass hashed workflow gate
+			const anonSessionDynFact = await store.addFact({
+				kind: "fact",
+				target: "session:sess_anon",
+				sourceTool: "frida_session",
+				locator: "session:sess_anon:seq:1",
+				content: "Anonymous session dynamic event without target hash",
+				subject: "native_sign",
+				assurance: "dynamic_call_observation",
+			});
+			const wfAnon = await makeWorkflow("anon_session_fact");
+			const resAnonFact = await advanceWorkflow(
+				wfAnon,
+				{ step_id: "dyn_step", status: "completed", evidence_ids: [anonSessionDynFact.id] },
+				{ repositoryRoot: tempDir, evidenceStore: store },
+			);
+			expect(resAnonFact.advanced).toBe(false);
+			expect(resAnonFact.status).toBe("held_pending_decision");
+
+			// 4c. Case-distinct target path ('VirtualApp.apk' vs 'virtualapp.apk') is not treated as equal
+			const wfCaseSensitive = await wfStore!.create({
+				id: "wf_dyn_gate_case_sensitive",
+				target: "virtualapp.apk",
+				format: "APK",
+				acceptance_criteria: [
+					{
+						id: "ac_case",
+						step_id: "dyn_step",
+						title: "Case sensitive target check",
+						subject: "native_sign",
+						min_assurance: "dynamic_call_observation",
+					},
+				],
+				steps: [
+					{
+						id: "dyn_step",
+						title: "Frida runtime hook",
+						tool: "frida",
+						gate: "G2",
+						params_summary: { action: "spawn" },
+						status: "pending",
+						attempts: 0,
+						max_attempts: 3,
+						created_at: new Date().toISOString(),
+						updated_at: new Date().toISOString(),
+					},
+				],
+			});
+			const wrongCaseFact = await store.addFact({
+				kind: "fact",
+				target: "VirtualApp.apk",
+				sourceTool: "frida_session",
+				locator: "session:sess_case:seq:1",
+				content: "Different case target name",
+				subject: "native_sign",
+				assurance: "dynamic_call_observation",
+			});
+			const resWrongCase = await advanceWorkflow(
+				wfCaseSensitive,
+				{ step_id: "dyn_step", status: "completed", evidence_ids: [wrongCaseFact.id] },
+				{ repositoryRoot: tempDir, evidenceStore: store },
+			);
+			expect(resWrongCase.advanced).toBe(false);
+			expect(resWrongCase.status).toBe("held_pending_decision");
+			// 5. Qualified dynamic fact AND qualified dynamic conclusion matching target/hash and subject succeed
+			const qualifiedDynFact = await store.addFact({
+				kind: "fact",
+				target: "sample.apk",
+				sourceTool: "frida_session",
+				locator: "session:sess_real:seq:7",
+				content: "Observed libsign.so!0x1234 invocation",
+				subject: "native_sign",
+				assurance: "dynamic_call_observation",
+			});
+			const wf5 = await makeWorkflow("qualified_fact");
+			const resQualFact = await advanceWorkflow(
+				wf5,
+				{ step_id: "dyn_step", status: "completed", evidence_ids: [qualifiedDynFact.id] },
+				{ repositoryRoot: tempDir, evidenceStore: store },
+			);
+			expect(resQualFact.advanced).toBe(true);
+			expect(resQualFact.status).toBe("recorded");
+			expect(wf5.steps[0].status).toBe("completed");
+
+			const qualifiedHyp = await store.addHypothesis({
+				kind: "hypothesis",
+				target: "sample.apk",
+				claim: "libsign.so!0x1234 signs login request",
+				verificationPlan: "Hook 0x1234 in Frida session",
+				subject: "native_sign",
+				facts: [qualifiedDynFact.id],
+			});
+			const qualifiedConc = await store.verifyHypothesis({
+				hypothesisId: qualifiedHyp.id,
+				method: "Frida interceptor",
+				command: "frida -U -f com.sample -l sign.js",
+				result: "Hit libsign.so+0x1234",
+				conclusion: "Confirmed dynamic call observation at libsign.so+0x1234",
+				status: "verified",
+				assurance: "dynamic_call_observation",
+			});
+			const wf6 = await makeWorkflow("qualified_conc");
+			const resQualConc = await advanceWorkflow(
+				wf6,
+				{ step_id: "dyn_step", status: "completed", evidence_ids: [qualifiedConc.id] },
+				{ repositoryRoot: tempDir, evidenceStore: store },
+			);
+			expect(resQualConc.advanced).toBe(true);
+			expect(resQualConc.status).toBe("recorded");
+			expect(wf6.steps[0].status).toBe("completed");
 		} finally {
 			await fs.rm(tempDir, { recursive: true, force: true });
 		}

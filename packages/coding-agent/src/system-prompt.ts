@@ -533,6 +533,8 @@ export interface BuildSystemPromptOptions {
 	cwd?: string;
 	/** Additional workspace directories beyond cwd (multi-root), absolute. Injected into the project prompt. */
 	additionalWorkspaceRoots?: string[];
+	/** Unverified historical investigation index, included only in dynamic project context. */
+	investigationBrief?: string;
 	/** Pre-loaded context files (skips discovery if provided). */
 	contextFiles?: Array<{ path: string; content: string; depth?: number }>;
 	/** Load no context files beyond `contextFiles`: none for additional workspace roots, no nested AGENTS.md list. */
@@ -1062,7 +1064,11 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 	// different directories share the static prefix and the Anthropic head
 	// cache breakpoint lands right before this block.
 	const projectPrompt = prompt
-		.render(projectPromptTemplate, { ...data, activeRepoContext: activeRepoContextPrompt })
+		.render(projectPromptTemplate, {
+			...data,
+			activeRepoContext: activeRepoContextPrompt,
+			investigationBrief: options.investigationBrief,
+		})
 		.trim();
 	if (projectPrompt) {
 		systemPrompt.push(projectPrompt);

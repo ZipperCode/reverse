@@ -12,6 +12,7 @@ import { normalizeBrowserEvent, type UniversalDynamicEvent } from "../reverse-ru
 import type { ToolSession } from "./index";
 import { throwIfAborted } from "./tool-errors";
 import browserReverseSessionDescription from "../prompts/tools/browser-reverse-session.md" with { type: "text" };
+import { normalizeRequestInitiator, type NetworkRequestInitiator } from "./browser/network";
 import {
 	HOOK_PRESETS,
 	HOOK_TAMPER_MODES,
@@ -138,6 +139,73 @@ export function clearActiveBrowserReverseSessionsForTest(): void {
 	activeReverseSessions.clear();
 }
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+	return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function isInitiatorCandidate(value: unknown): value is NetworkRequestInitiator {
+	return isObjectRecord(value) && typeof value.type === "string" && value.type.length > 0;
+}
+
+/** 将合法 tab.requests() 记录映射为不含敏感头与正文的 request 事件；缺失核心字段则跳过，不伪造标识或行号。 */
+function mapNetworkRequestToBrowserEvent(rawReq: unknown): BrowserReverseEvent | null {
+	if (!isObjectRecord(rawReq)) return null;
+	if (typeof rawReq.id !== "string" || rawReq.id.trim().length === 0) return null;
+	if (typeof rawReq.method !== "string" || rawReq.method.trim().length === 0) return null;
+	if (typeof rawReq.url !== "string" || rawReq.url.trim().length === 0) return null;
+	if (typeof rawReq.ts !== "number" || !Number.isFinite(rawReq.ts)) return null;
+
+	const requestId = rawReq.id.trim();
+	const eventId = requestId.startsWith("network:") ? requestId : `network:${requestId}`;
+	const method = rawReq.method.trim().toUpperCase();
+	const url = rawReq.url;
+	const initiator = isInitiatorCandidate(rawReq.initiator) ? normalizeRequestInitiator(rawReq.initiator) : undefined;
+
+	return {
+		timestamp: rawReq.ts,
+		type: "request",
+		id: eventId,
+		requestId,
+		method,
+		url,
+		...(initiator !== undefined ? { initiator } : {}),
+	};
+}
+
+function eventDedupSignature(ev: BrowserReverseEvent): string {
+	const candidate = ev.data ?? ev.payload;
+	if (candidate !== undefined) return JSON.stringify(candidate);
+	const { seq: _seq, ...rest } = ev;
+	return JSON.stringify(rest);
+}
+
+function matchesBrowserReverseEventFilter(ev: BrowserReverseEvent, filterQuery: string): boolean {
+	const typeLower = (ev.type || "").toLowerCase();
+	if (filterQuery === "ws" && typeLower.startsWith("websocket")) return true;
+	if (filterQuery === "send" && (typeLower.includes("send") || typeLower.includes("request"))) return true;
+	if (filterQuery === "request" && typeLower.includes("request")) return true;
+	if (filterQuery === "console" && typeLower.includes("console")) return true;
+	if (filterQuery === "crypto" && typeLower.startsWith("crypto")) return true;
+	try {
+		return JSON.stringify(ev).toLowerCase().includes(filterQuery);
+	} catch {
+		return false;
+	}
+}
+
+function formatInitiatorDisplayText(initiator: unknown): string {
+	if (!isInitiatorCandidate(initiator)) return "";
+	const topFrame = initiator.stack?.callFrames.find(frame => Boolean(frame.url));
+	if (topFrame) {
+		return ` <- ${topFrame.url}:${topFrame.lineNumber + 1}:${topFrame.columnNumber + 1}`;
+	}
+	if (initiator.url && typeof initiator.lineNumber === "number") {
+		const colPart = typeof initiator.columnNumber === "number" ? `:${initiator.columnNumber + 1}` : "";
+		return ` <- ${initiator.url}:${initiator.lineNumber + 1}${colPart}`;
+	}
+	return "";
+}
+
 export class BrowserReverseSessionStore {
 	readonly projectDirectory: string;
 
@@ -260,7 +328,7 @@ export class BrowserReverseSessionTool implements AgentTool<
 	private async syncToRuntimeSessionStore(revSession: ActiveBrowserReverseSession): Promise<void> {
 		try {
 			const runtimeStore = ReverseRuntimeSessionStore.forSession(this.session.cwd, this.stateRoot);
-			const recent = (revSession.capturedEvents ?? []).slice(-50);
+			const recent = (revSession.capturedEvents ?? []).slice(-100);
 			const normalizedRecent: UniversalDynamicEvent[] = recent.map((ev, idx) =>
 				normalizeBrowserEvent(ev, revSession.id, {
 					target: revSession.url || revSession.tabName,
@@ -553,12 +621,23 @@ export class BrowserReverseSessionTool implements AgentTool<
 			const revSession = await this.findOrCreateSession(tabName, params.session_id, liveTab.url);
 			const limit = Math.min(500, Math.max(1, Math.floor(params.limit ?? 50)));
 			const hookTool = new JsHookPresetTool(this.session, runner);
+			// 先获取完整有界 hook 事件与网络请求，合并后再统一执行 filter/limit/去重/seq 分配
 			const captureRes = await hookTool.execute(
 				"sub_capture",
-				{ action: "capture", tab_name: tabName, filter: params.filter, clear: params.clear === true, limit },
+				{ action: "capture", tab_name: tabName, clear: params.clear === true, limit: 1000 },
 				signal,
 			);
-			const newEvents = captureRes.details?.events ?? [];
+			const rawHookEvents = captureRes.details?.events ?? [];
+			const rawRequests = captureRes.details?.requests ?? [];
+			const mappedRequestEvents = rawRequests
+				.map(req => mapNetworkRequestToBrowserEvent(req))
+				.filter((ev): ev is BrowserReverseEvent => ev !== null);
+			let mergedEvents: BrowserReverseEvent[] = [...rawHookEvents, ...mappedRequestEvents];
+			const filterQuery = (params.filter || params.kind)?.trim().toLowerCase() || null;
+			if (filterQuery) {
+				mergedEvents = mergedEvents.filter(ev => matchesBrowserReverseEventFilter(ev, filterQuery));
+			}
+			const newEvents = mergedEvents.slice(0, limit);
 			if (typeof revSession.eventsCount !== "number") {
 				revSession.eventsCount = revSession.capturedEvents.reduce(
 					(max, e) => Math.max(max, typeof e.seq === "number" ? e.seq : 0),
@@ -571,12 +650,15 @@ export class BrowserReverseSessionTool implements AgentTool<
 					return (
 						e.timestamp === ev.timestamp &&
 						e.type === ev.type &&
-						JSON.stringify(e.data ?? e.payload ?? e) === JSON.stringify(ev.data ?? ev.payload ?? ev)
+						eventDedupSignature(e) === eventDedupSignature(ev)
 					);
 				});
 				if (existing) {
 					if (typeof existing.seq === "number" && typeof ev.seq !== "number") {
 						ev.seq = existing.seq;
+					}
+					if (existing.initiator === undefined && ev.initiator !== undefined) {
+						existing.initiator = ev.initiator;
 					}
 				} else {
 					revSession.eventsCount += 1;
@@ -589,8 +671,45 @@ export class BrowserReverseSessionTool implements AgentTool<
 				revSession.capturedEvents = [];
 			}
 			await this.saveSession(revSession);
+
+			const typeCounts: Record<string, number> = {};
+			for (const ev of mergedEvents) {
+				const key = ev.type || "unknown";
+				typeCounts[key] = (typeCounts[key] || 0) + 1;
+			}
+			const summaryLines = [
+				`# Browser Captured Events: Tab \`${tabName}\``,
+				`- **Session ID**: \`${revSession.id}\``,
+				`- **Total Matching Events**: ${mergedEvents.length}${mergedEvents.length > newEvents.length ? ` (showing first ${newEvents.length})` : ""}`,
+				`- **Event Types Breakdown**: ${
+					Object.keys(typeCounts).length > 0
+						? Object.entries(typeCounts)
+								.map(([k, v]) => `${k}=${v}`)
+								.join(", ")
+						: "[none]"
+				}`,
+				`- **Captured Console Messages**: ${(captureRes.details?.consoleLogs ?? []).length}`,
+				`- **Captured Network Requests**: ${rawRequests.length}`,
+				`- **Buffer Cleared**: ${params.clear === true ? "yes" : "no"}`,
+				"",
+			];
+			if (newEvents.length > 0) {
+				summaryLines.push("### Captured Session Events:");
+				for (const ev of newEvents.slice(0, 10)) {
+					const iso =
+						typeof ev.timestamp === "number" ? new Date(ev.timestamp).toISOString() : String(ev.timestamp);
+					const callsiteHint = formatInitiatorDisplayText(ev.initiator);
+					summaryLines.push(`- **[${iso}] ${ev.type}** ${ev.url || ev.method || ev.target || ""}${callsiteHint}`);
+				}
+				if (newEvents.length > 10) {
+					summaryLines.push(`... and ${newEvents.length - 10} more events.`);
+				}
+			} else {
+				summaryLines.push("_No matching events captured._");
+			}
+
 			return {
-				content: captureRes.content,
+				content: [{ type: "text", text: summaryLines.join("\n") }],
 				details: {
 					action,
 					session_id: revSession.id,
@@ -600,7 +719,7 @@ export class BrowserReverseSessionTool implements AgentTool<
 					events: newEvents,
 					eventCount: revSession.capturedEvents.length,
 					consoleLogs: captureRes.details?.consoleLogs ?? [],
-					requests: captureRes.details?.requests ?? [],
+					requests: rawRequests,
 					injected_hooks: revSession.injectedHooks,
 					executed: true,
 					safetyNote: "Structured events captured from browser session.",
@@ -614,25 +733,9 @@ export class BrowserReverseSessionTool implements AgentTool<
 			if (typeof params.since_seq === "number") {
 				matchingEvents = matchingEvents.filter(e => typeof e.seq === "number" && e.seq > params.since_seq!);
 			}
-			const filterQuery =
-				params.filter || (params as Record<string, unknown>).kind
-					? String(params.filter || (params as Record<string, unknown>).kind)
-							.trim()
-							.toLowerCase()
-					: null;
+			const filterQuery = (params.filter || params.kind)?.trim().toLowerCase() || null;
 			if (filterQuery) {
-				matchingEvents = matchingEvents.filter(e => {
-					const typeLower = (e.type || "").toLowerCase();
-					if (filterQuery === "ws" && typeLower.startsWith("websocket")) return true;
-					if (filterQuery === "send" && (typeLower.includes("send") || typeLower.includes("request"))) return true;
-					if (filterQuery === "console" && typeLower.includes("console")) return true;
-					if (filterQuery === "crypto" && typeLower.startsWith("crypto")) return true;
-					try {
-						return JSON.stringify(e).toLowerCase().includes(filterQuery);
-					} catch {
-						return false;
-					}
-				});
+				matchingEvents = matchingEvents.filter(e => matchesBrowserReverseEventFilter(e, filterQuery));
 			}
 			const totalMatching = matchingEvents.length;
 
@@ -677,28 +780,12 @@ export class BrowserReverseSessionTool implements AgentTool<
 		if (action === "export_evidence") {
 			const liveTab = runner.getTab(tabName);
 			const revSession = await this.findOrCreateSession(tabName, params.session_id, liveTab?.url);
-			const filter =
-				params.filter || (params as Record<string, unknown>).kind
-					? String(params.filter || (params as Record<string, unknown>).kind)
-							.trim()
-							.toLowerCase()
-					: null;
+			const filter = (params.filter || params.kind)?.trim().toLowerCase() || null;
 			const limit = Math.min(500, Math.max(1, Math.floor(params.limit ?? 50)));
 
 			let matchingEvents = revSession.capturedEvents;
 			if (filter) {
-				matchingEvents = matchingEvents.filter(e => {
-					const typeLower = (e.type || "").toLowerCase();
-					if (filter === "ws" && typeLower.startsWith("websocket")) return true;
-					if (filter === "send" && (typeLower.includes("send") || typeLower.includes("request"))) return true;
-					if (filter === "console" && typeLower.includes("console")) return true;
-					if (filter === "crypto" && typeLower.startsWith("crypto")) return true;
-					try {
-						return JSON.stringify(e).toLowerCase().includes(filter);
-					} catch {
-						return false;
-					}
-				});
+				matchingEvents = matchingEvents.filter(e => matchesBrowserReverseEventFilter(e, filter));
 			}
 
 			const paged = matchingEvents.slice(0, limit);

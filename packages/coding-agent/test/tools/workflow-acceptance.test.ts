@@ -887,12 +887,21 @@ describe("Workflow Acceptance Criteria and Deployment Boundaries (#12, #13, Clos
 				format: "APK",
 			});
 
+			const factExec = await evidenceStore.addFact({
+				kind: "fact",
+				title: "Cold boot execution observed",
+				target: targetFile,
+				sourceTool: "frida_session",
+				locator: "session:boot_sess:seq:1",
+				content: "App booted cleanly",
+			});
 			const hyp = await evidenceStore.addHypothesis({
 				kind: "hypothesis",
 				title: "Hypothesis",
 				claim: "Derivative executes successfully",
 				verificationPlan: "Check execution",
 				target: targetFile,
+				facts: [factExec.id],
 			});
 
 			const conc = await evidenceStore.verifyHypothesis({
@@ -1000,6 +1009,144 @@ describe("Workflow Acceptance Criteria and Deployment Boundaries (#12, #13, Clos
 			expect(m.acceptance_completion_ratio).toBe(0);
 		} finally {
 			if (store) await fs.rm(store.projectDirectory, { recursive: true, force: true }).catch(() => undefined);
+			await fs.rm(tmpDir, { recursive: true, force: true });
+		}
+	});
+
+	it("holds high-risk dynamic steps pending decision when given static conclusions or unqualified session locators", async () => {
+		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "rev-test-dyn-step-gate-"));
+		let store: ReverseWorkflowStore | undefined;
+		let evidenceStore: EvidenceStore | undefined;
+		try {
+			const targetFile = path.join(tmpDir, "app.apk");
+			await fs.writeFile(targetFile, "dummy apk content");
+
+			store = new ReverseWorkflowStore({ repositoryRoot: tmpDir });
+			evidenceStore = new EvidenceStore({ repositoryRoot: tmpDir });
+
+			const wf = await store.create({
+				target: "app.apk",
+				format: "APK",
+				acceptance_criteria: [
+					{
+						id: "ac_dyn",
+						step_id: "s_dyn",
+						title: "Verify runtime call",
+						subject: "token_sign",
+						min_assurance: "dynamic_call_observation",
+					},
+				],
+				steps: [
+					{
+						id: "s_dyn",
+						title: "Hook token_sign with Frida",
+						tool: "frida",
+						gate: "G2",
+						params_summary: { action: "spawn" },
+						status: "pending",
+						attempts: 0,
+						max_attempts: 3,
+						created_at: new Date().toISOString(),
+						updated_at: new Date().toISOString(),
+					},
+				],
+			});
+
+			const staticFact = await evidenceStore.addFact({
+				kind: "fact",
+				target: targetFile,
+				sourceTool: "grep",
+				locator: "decompiled:42",
+				content: "token_sign symbol",
+				subject: "token_sign",
+				assurance: "static_candidate",
+			});
+			const hypStatic = await evidenceStore.addHypothesis({
+				kind: "hypothesis",
+				target: targetFile,
+				claim: "token_sign is invoked",
+				verificationPlan: "Hook at runtime",
+				subject: "token_sign",
+				facts: [staticFact.id],
+			});
+			const concStatic = await evidenceStore.verifyHypothesis({
+				hypothesisId: hypStatic.id,
+				method: "static inspection",
+				command: "grep token_sign",
+				result: "found",
+				conclusion: "Found static reference",
+				status: "verified",
+				assurance: "static_candidate",
+				subject: "token_sign",
+			});
+
+			const resStatic = await advanceWorkflow(
+				wf,
+				{ step_id: "s_dyn", status: "completed", evidence_ids: [concStatic.id] },
+				{ repositoryRoot: tmpDir, evidenceStore },
+			);
+			expect(resStatic.advanced).toBe(false);
+			expect(resStatic.status).toBe("held_pending_decision");
+			expect(wf.steps[0].status).toBe("pending");
+
+			const unqualifiedSessionFact = await evidenceStore.addFact({
+				kind: "fact",
+				target: targetFile,
+				sourceTool: "browser_reverse_session",
+				locator: "session:tab_1:seq:3",
+				content: "console info output",
+				subject: "token_sign",
+			});
+			const resSessionOnly = await advanceWorkflow(
+				wf,
+				{ step_id: "s_dyn", status: "completed", evidence_ids: [unqualifiedSessionFact.id] },
+				{ repositoryRoot: tmpDir, evidenceStore },
+			);
+			expect(resSessionOnly.advanced).toBe(false);
+			expect(resSessionOnly.status).toBe("held_pending_decision");
+			expect(wf.steps[0].status).toBe("pending");
+
+			const qualifiedDynFact = await evidenceStore.addFact({
+				kind: "fact",
+				target: targetFile,
+				sourceTool: "frida_session",
+				locator: "session:runt_frida_1:seq:9",
+				content: "Observed libsign.so!0x1040 call",
+				subject: "token_sign",
+				assurance: "dynamic_call_observation",
+			});
+			const hypDyn = await evidenceStore.addHypothesis({
+				kind: "hypothesis",
+				target: targetFile,
+				claim: "libsign.so!0x1040 signs token",
+				verificationPlan: "Frida hook",
+				subject: "token_sign",
+				facts: [qualifiedDynFact.id],
+			});
+			const concDyn = await evidenceStore.verifyHypothesis({
+				hypothesisId: hypDyn.id,
+				method: "frida hook",
+				command: "frida -U -f app -l hook.js",
+				result: "hit 0x1040",
+				conclusion: "Runtime call verified",
+				status: "verified",
+				assurance: "dynamic_call_observation",
+				subject: "token_sign",
+			});
+
+			const resDyn = await advanceWorkflow(
+				wf,
+				{ step_id: "s_dyn", status: "completed", evidence_ids: [concDyn.id] },
+				{ repositoryRoot: tmpDir, evidenceStore },
+			);
+			expect(resDyn.advanced).toBe(true);
+			expect(resDyn.status).toBe("recorded");
+			expect(wf.steps[0].status).toBe("completed");
+			expect(getWorkflowAcceptanceCriteria(wf, "s_dyn")[0].status).toBe("satisfied");
+		} finally {
+			if (store) await fs.rm(store.projectDirectory, { recursive: true, force: true }).catch(() => undefined);
+			if (evidenceStore)
+				await fs.rm(evidenceStore.projectDirectory, { recursive: true, force: true }).catch(() => undefined);
 			await fs.rm(tmpDir, { recursive: true, force: true });
 		}
 	});

@@ -27,6 +27,155 @@ import { verifyInstalledTool } from "./recovery";
 import { SKILL_TOOL_CATALOG } from "../extensibility/skill-tool-catalog";
 import { getMcpService } from "../extensibility/mcp-service-catalog";
 
+function matchesWorkflowTargetPath(
+	candidateTarget: string | undefined,
+	workflow: ReverseWorkflowRecord,
+	repositoryRoot: string,
+): boolean {
+	if (!candidateTarget || !candidateTarget.trim()) return false;
+	const cand = candidateTarget.trim();
+	const wfTarget = workflow.target?.trim();
+	if (!wfTarget) return true;
+	if (cand === wfTarget) return true;
+	if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(cand) || /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(wfTarget)) {
+		return false;
+	}
+	const candAbs = path.resolve(repositoryRoot, cand);
+	const wfAbs = workflow.target_abs_path ?? path.resolve(repositoryRoot, wfTarget);
+	return candAbs === wfAbs;
+}
+
+/**
+ * 校验步骤证据是否满足动态执行门禁：
+ * - fact：必须通过 evaluateEvidenceSupport 的有效性与动态 assurance 校验，且具备合法动态会话 locator；
+ * - conclusion：必须为 verified、有效、具备动态 assurance，并且关联 hypothesis 的 supporting facts 全部有效、
+ *   其中至少存在一条满足目标/哈希及已声明 subject 的有效动态观察事实。
+ */
+async function isStepVerifiedByDynamicEvidence(
+	evidenceStore: EvidenceStore,
+	evidenceIds: string[],
+	workflow: ReverseWorkflowRecord,
+	repositoryRoot: string,
+): Promise<boolean> {
+	const allRecords = await evidenceStore.getAllRecords().catch(() => []);
+	if (allRecords.length === 0) return false;
+
+	const recordMap = new Map<string, EvidenceRecord>(allRecords.map(r => [r.id, r]));
+	const wfHash = workflow.target_sha256?.trim();
+
+	for (const evId of evidenceIds) {
+		const rec = recordMap.get(evId);
+		if (!rec) continue;
+
+		if (rec.kind === "fact") {
+			if (!isDynamicLocator(rec.locator)) continue;
+			const hasExplicitTarget = Boolean(rec.target && !rec.target.startsWith("session:"));
+			if (workflow.target) {
+				if (hasExplicitTarget) {
+					if (!matchesWorkflowTargetPath(rec.target, workflow, repositoryRoot)) {
+						continue;
+					}
+				} else if (!wfHash) {
+					continue;
+				}
+			}
+			const factEval = await evaluateEvidenceSupport(allRecords, [rec.id], {
+				requiredKinds: ["fact"],
+				minAssurance: "dynamic_call_observation",
+				...(wfHash ? { requiredTargetSha256: wfHash } : {}),
+			});
+			if (factEval.valid) {
+				return true;
+			}
+			continue;
+		}
+
+		if (rec.kind === "conclusion") {
+			if (rec.status !== "verified") continue;
+			const hyp = recordMap.get(rec.hypothesisId);
+			if (!hyp || hyp.kind !== "hypothesis") continue;
+
+			const declaredSubject = rec.subject ?? rec.context?.subject ?? hyp.subject ?? hyp.context?.subject;
+			const concOrHypHash =
+				rec.targetSha256 ??
+				rec.context?.executionBinding?.artifactSha256 ??
+				hyp.targetSha256 ??
+				hyp.context?.executionBinding?.artifactSha256;
+
+			if (wfHash && concOrHypHash && concOrHypHash.toLowerCase() !== wfHash.toLowerCase()) {
+				continue;
+			}
+
+			const declaredTarget = rec.target ?? hyp.target;
+			if (
+				declaredTarget &&
+				workflow.target &&
+				!matchesWorkflowTargetPath(declaredTarget, workflow, repositoryRoot)
+			) {
+				continue;
+			}
+
+			const requiredHash = wfHash ?? concOrHypHash;
+
+			const concEval = await evaluateEvidenceSupport(allRecords, [rec.id], {
+				requiredKinds: ["conclusion"],
+				minAssurance: "dynamic_call_observation",
+				...(declaredSubject ? { requiredSubject: declaredSubject } : {}),
+				...(concOrHypHash ? { requiredTargetSha256: concOrHypHash } : {}),
+			});
+			if (!concEval.valid) continue;
+
+			const supportingFactIds = (hyp.facts ?? [])
+				.filter(id => typeof id === "string" && id.trim().length > 0)
+				.map(id => id.trim());
+			if (supportingFactIds.length === 0) continue;
+
+			const supportEval = await evaluateEvidenceSupport(allRecords, supportingFactIds, {
+				requiredKinds: ["fact"],
+				...(declaredSubject ? { requiredSubject: declaredSubject } : {}),
+				...(concOrHypHash ? { requiredTargetSha256: concOrHypHash } : {}),
+			});
+			if (!supportEval.valid) continue;
+
+			let hasMatchingDynamicFact = false;
+			for (const factId of supportingFactIds) {
+				const factRec = recordMap.get(factId);
+				if (!factRec || factRec.kind !== "fact") continue;
+				if (!isDynamicLocator(factRec.locator)) continue;
+
+				const factTarget = factRec.target;
+				const factHasExplicitTarget = Boolean(factTarget && !factTarget.startsWith("session:"));
+				if (workflow.target) {
+					if (factHasExplicitTarget) {
+						if (!matchesWorkflowTargetPath(factTarget, workflow, repositoryRoot)) {
+							continue;
+						}
+					} else if (!declaredTarget || !matchesWorkflowTargetPath(declaredTarget, workflow, repositoryRoot)) {
+						if (!requiredHash) continue;
+					}
+				}
+
+				const dynFactEval = await evaluateEvidenceSupport(allRecords, [factRec.id], {
+					requiredKinds: ["fact"],
+					minAssurance: "dynamic_call_observation",
+					...(declaredSubject ? { requiredSubject: declaredSubject } : {}),
+					...(requiredHash ? { requiredTargetSha256: requiredHash } : {}),
+				});
+				if (dynFactEval.valid) {
+					hasMatchingDynamicFact = true;
+					break;
+				}
+			}
+
+			if (hasMatchingDynamicFact) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 /**
  * Allowlisted read-only static analysis and triage tools permitted for auto-progression.
  */
@@ -361,17 +510,12 @@ export async function advanceWorkflow(
 			options.evidence_ids.length > 0 &&
 			context.evidenceStore
 		) {
-			for (const evId of options.evidence_ids) {
-				const rec = await context.evidenceStore.getRecord(evId).catch(() => null);
-				if (
-					rec &&
-					((rec.kind === "conclusion" && rec.status === "verified") ||
-						(rec.kind === "fact" && isDynamicLocator(rec.locator)))
-				) {
-					verifiedByDynamicEvidence = true;
-					break;
-				}
-			}
+			verifiedByDynamicEvidence = await isStepVerifiedByDynamicEvidence(
+				context.evidenceStore,
+				options.evidence_ids,
+				workflow,
+				context.repositoryRoot,
+			);
 		}
 
 		if (!risk.is_low_risk && !verifiedByDynamicEvidence) {

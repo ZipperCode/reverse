@@ -70,6 +70,10 @@ export interface BrowserCaptureResult<T> {
 	nextSeq: number;
 	/** Entries evicted by bounded-buffer overflow since the last clear. */
 	dropped: number;
+	/** CDP 调用栈采集是否已就绪。 */
+	callStackAvailable?: boolean;
+	/** 调用栈采集不可用时的诊断信息。 */
+	callStackDiagnostic?: string;
 }
 
 type BrowserCaptureEntry = BrowserConsoleEntry | BrowserErrorEntry;
@@ -224,6 +228,8 @@ export class PageConsoleCapture {
 	#protocolRequestFinishedHandler?: (event: Protocol.Network.LoadingFinishedEvent) => void;
 	#protocolRequestFailedHandler?: (event: Protocol.Network.LoadingFailedEvent) => void;
 	readonly #requests = new Map<Protocol.Network.RequestId, { method: string; url: string }>();
+	#callStackAvailable = false;
+	#callStackDiagnostic?: string;
 
 	constructor(limit = DEFAULT_CAPTURE_LIMIT) {
 		this.#limit = Math.max(1, Math.floor(limit));
@@ -232,6 +238,16 @@ export class PageConsoleCapture {
 	/** Sequence cursor immediately after the latest allocated capture entry. */
 	get nextSequence(): number {
 		return this.#nextSeq;
+	}
+
+	/** Whether CDP Debugger async call-stack tracking is active on this page. */
+	get callStackAvailable(): boolean {
+		return this.#callStackAvailable;
+	}
+
+	/** Diagnostic message when CDP call-stack tracking could not be enabled. */
+	get callStackDiagnostic(): string | undefined {
+		return this.#callStackDiagnostic;
 	}
 
 	/** Attach capture listeners to a page once. */
@@ -352,10 +368,32 @@ export class PageConsoleCapture {
 			activeSession.on("Network.loadingFailed", this.#protocolRequestFailedHandler);
 			await Promise.all([activeSession.send("Runtime.enable"), activeSession.send("Network.enable")]);
 			this.#cdp = activeSession;
-		} catch {
+			try {
+				// 顺序启用 Debugger 与异步调用栈深度以捕获请求发起位置，不启用断点或暂停程序
+				await activeSession.send("Debugger.enable");
+				await activeSession.send("Debugger.setAsyncCallStackDepth", { maxDepth: 4 });
+				this.#callStackAvailable = true;
+				this.#callStackDiagnostic = undefined;
+			} catch (error) {
+				this.#callStackAvailable = false;
+				const reason = error instanceof Error ? error.message : String(error);
+				this.#recordCallStackUnavailable(
+					`[browser] CDP call stack capture unavailable (basic capture preserved): ${reason}`,
+				);
+			}
+		} catch (error) {
 			await session?.detach().catch(() => undefined);
+			this.#cdp = undefined;
 			this.#protocolConsoleHandler = undefined;
 			this.#protocolExceptionHandler = undefined;
+			this.#protocolRequestHandler = undefined;
+			this.#protocolRequestFinishedHandler = undefined;
+			this.#protocolRequestFailedHandler = undefined;
+			this.#callStackAvailable = false;
+			const reason = error instanceof Error ? error.message : String(error);
+			this.#recordCallStackUnavailable(
+				`[browser] CDP session unavailable; call stack capture disabled (basic capture preserved): ${reason}`,
+			);
 		}
 	}
 
@@ -429,6 +467,8 @@ export class PageConsoleCapture {
 		this.#protocolRequestFinishedHandler = undefined;
 		this.#protocolRequestFailedHandler = undefined;
 		this.#requests.clear();
+		this.#callStackAvailable = false;
+		this.#callStackDiagnostic = undefined;
 		this.clear();
 	}
 
@@ -436,6 +476,18 @@ export class PageConsoleCapture {
 		const sequence = this.#nextSeq;
 		this.#nextSeq += 1;
 		return sequence;
+	}
+
+	#recordCallStackUnavailable(diagnostic: string): void {
+		this.#callStackDiagnostic = diagnostic;
+		this.#push({
+			seq: this.#allocateSequence(),
+			ts: Date.now(),
+			type: "console",
+			level: "warn",
+			text: boundedText(diagnostic, MAX_TEXT_CHARS),
+			args: [diagnostic],
+		});
 	}
 
 	#push(entry: BrowserCaptureEntry): void {
@@ -463,6 +515,11 @@ export class PageConsoleCapture {
 			entries,
 			nextSeq: entries.at(-1)?.seq ?? this.#nextSeq - 1,
 			dropped: this.#dropped,
+			...(this.#callStackDiagnostic
+				? { callStackAvailable: false, callStackDiagnostic: this.#callStackDiagnostic }
+				: this.#callStackAvailable
+					? { callStackAvailable: true }
+					: {}),
 		};
 	}
 }

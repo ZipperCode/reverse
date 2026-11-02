@@ -93,6 +93,7 @@ export interface LearnKnowledgeInput {
 	workflow_id?: string;
 	target_hash?: string;
 	format?: string;
+	conclusion_ids?: string[];
 }
 
 export interface LearnKnowledgeResult {

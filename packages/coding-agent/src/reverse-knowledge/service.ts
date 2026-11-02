@@ -1,5 +1,5 @@
 import type { EvidenceStore } from "../evidence/store";
-import type { EvidenceRecord } from "../evidence/contracts";
+import { ASSURANCE_LEVEL_RANK, type EvidenceRecord } from "../evidence/contracts";
 import { isDynamicLocator, parseDynamicLocator } from "../reverse-runtime-session/dynamic-events";
 import type { ReverseWorkflowStore } from "../reverse-workflow/store";
 import type { ReverseKnowledgeStore } from "./store";
@@ -164,6 +164,10 @@ export async function learnFromEvidenceAndWorkflows(
 	let skippedUnverified = 0;
 	const createdRecords: ReverseKnowledgeRecord[] = [];
 
+	const hasConclusionFilter = Array.isArray(options.conclusion_ids);
+	const conclusionIdFilter = hasConclusionFilter
+		? new Set(options.conclusion_ids!.map(id => id.trim()).filter(Boolean))
+		: undefined;
 	const existingKnowledge = await knowledgeStore.list();
 	const seenEvidenceIds = new Set<string>();
 	const seenRecoveryKeys = new Set<string>();
@@ -192,6 +196,11 @@ export async function learnFromEvidenceAndWorkflows(
 	}
 	const validityMap = await evidenceStore.resolveValidity();
 	for (const ev of evidenceRecords) {
+		if (conclusionIdFilter) {
+			if (ev.kind !== "conclusion" || !conclusionIdFilter.has(ev.id)) {
+				continue;
+			}
+		}
 		if (ev.kind === "unknown") {
 			skippedUnverified++;
 			continue;
@@ -254,47 +263,20 @@ export async function learnFromEvidenceAndWorkflows(
 					if (hyp.facts && hyp.facts.length > 0) {
 						for (const fId of hyp.facts) {
 							const f = await evidenceStore.getRecord(fId).catch(() => null);
-							if (f && f.kind === "fact" && isDynamicLocator(f.locator)) {
+							const factAssurance = f?.context?.assurance;
+							const isQualifiedDynamicFact =
+								Boolean(f && f.kind === "fact" && isDynamicLocator(f.locator)) &&
+								Boolean(
+									factAssurance &&
+									ASSURANCE_LEVEL_RANK[factAssurance] >= ASSURANCE_LEVEL_RANK.dynamic_call_observation,
+								);
+							if (f && f.kind === "fact" && isQualifiedDynamicFact) {
 								hasDynamicEvidence = true;
 								dynamicLocators.push(f.locator);
 								const parsed = parseDynamicLocator(f.locator);
 								if (parsed) dynamicSessions.add(parsed.sessionId);
 							}
 						}
-					}
-				}
-			}
-
-			if (!hasDynamicEvidence) {
-				const sessionMatch = ev.command?.match(/session_id:\s*["']?([a-zA-Z0-9_.-]+)["']?/);
-				const sessionIdFromCmd = sessionMatch ? sessionMatch[1] : undefined;
-				const isDynamicContext =
-					Boolean(sessionMatch) ||
-					ev.command?.includes("reverse_dynamic_evidence") ||
-					ev.method?.toLowerCase().includes("dynamic") ||
-					ev.result?.toLowerCase().includes("dynamic");
-
-				if (isDynamicContext) {
-					const allFacts = await evidenceStore
-						.listRecords({ kind: "fact", limit: 100 })
-						.catch(() => ({ items: [] }));
-					for (const r of allFacts.items) {
-						if (r.kind === "fact" && isDynamicLocator(r.locator)) {
-							const parsed = parseDynamicLocator(r.locator);
-							const matchesSession = sessionIdFromCmd ? parsed?.sessionId === sessionIdFromCmd : false;
-							const matchesTarget = Boolean(ev.target && r.target && r.target === ev.target);
-							if (matchesSession || matchesTarget) {
-								hasDynamicEvidence = true;
-								if (!dynamicLocators.includes(r.locator)) {
-									dynamicLocators.push(r.locator);
-								}
-								if (parsed) dynamicSessions.add(parsed.sessionId);
-							}
-						}
-					}
-					if (!hasDynamicEvidence && sessionIdFromCmd) {
-						hasDynamicEvidence = true;
-						dynamicSessions.add(sessionIdFromCmd);
 					}
 				}
 			}
@@ -306,20 +288,22 @@ export async function learnFromEvidenceAndWorkflows(
 				: `[Verified Finding] ${hypothesisClaim ? hypothesisClaim.slice(0, 80) : ev.conclusion.slice(0, 80)}`;
 
 			let pattern: string | undefined;
-			const lowerText = `${ev.conclusion} ${ev.result} ${ev.method}`.toLowerCase();
-			if (
-				lowerText.includes("aes") ||
-				lowerText.includes("crypto") ||
-				lowerText.includes("decrypt") ||
-				lowerText.includes("encrypt")
-			) {
-				pattern = "dynamic_crypto_verification";
-			} else if (lowerText.includes("jni") || lowerText.includes("registernatives")) {
-				pattern = "dynamic_jni_resolution";
-			} else if (lowerText.includes("token") || lowerText.includes("auth") || lowerText.includes("session")) {
-				pattern = "dynamic_auth_observation";
-			} else if (hasDynamicEvidence) {
-				pattern = "dynamic_runtime_verification";
+			if (hasDynamicEvidence) {
+				const lowerText = `${ev.conclusion} ${ev.result} ${ev.method}`.toLowerCase();
+				if (
+					lowerText.includes("aes") ||
+					lowerText.includes("crypto") ||
+					lowerText.includes("decrypt") ||
+					lowerText.includes("encrypt")
+				) {
+					pattern = "dynamic_crypto_verification";
+				} else if (lowerText.includes("jni") || lowerText.includes("registernatives")) {
+					pattern = "dynamic_jni_resolution";
+				} else if (lowerText.includes("token") || lowerText.includes("auth") || lowerText.includes("session")) {
+					pattern = "dynamic_auth_observation";
+				} else {
+					pattern = "dynamic_runtime_verification";
+				}
 			}
 
 			let guidance = `Verified finding via ${ev.method} (${ev.command}): ${ev.conclusion}`;
@@ -367,9 +351,11 @@ export async function learnFromEvidenceAndWorkflows(
 	}
 
 	// 2. Learn from ReverseWorkflowStore
-	const workflows = options.workflow_id
-		? [await workflowStore.get(options.workflow_id)].filter((w): w is NonNullable<typeof w> => Boolean(w))
-		: await workflowStore.list();
+	const workflows = hasConclusionFilter
+		? []
+		: options.workflow_id
+			? [await workflowStore.get(options.workflow_id)].filter((w): w is NonNullable<typeof w> => Boolean(w))
+			: await workflowStore.list();
 
 	for (const wf of workflows) {
 		if (options.target_hash && wf.target_sha256 && options.target_hash !== wf.target_sha256) {

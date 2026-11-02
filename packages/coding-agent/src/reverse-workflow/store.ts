@@ -300,6 +300,27 @@ export class ReverseWorkflowStore {
 		});
 	}
 
+	/**
+	 * 在工作流锁内重新读取并去重合并指定步骤的 artifact_refs，避免并发覆盖其他字段。
+	 */
+	async mergeStepArtifactRefs(workflowId: string, stepId: string, refs: string[]): Promise<void> {
+		await withWorkflowStoreWrite(this.projectDirectory, this.lockPath, async () => {
+			const workflow = await this.get(workflowId);
+			if (!workflow) {
+				throw new ToolError(`Workflow '${workflowId}' not found.`);
+			}
+			const step = workflow.steps.find(s => s.id === stepId);
+			if (!step) {
+				throw new ToolError(`Step '${stepId}' not found in workflow '${workflowId}'.`);
+			}
+			const normalizedRefs = refs.map(r => r.trim()).filter(r => r.length > 0);
+			const merged = Array.from(new Set([...(step.artifact_refs ?? []), ...normalizedRefs]));
+			step.artifact_refs = merged;
+			workflow.updated_at = new Date().toISOString();
+			await this.writeWorkflowFileUnlocked(workflow);
+		});
+	}
+
 	async get(id: string): Promise<ReverseWorkflowRecord | null> {
 		const filePath = this.workflowFilePath(id);
 		try {

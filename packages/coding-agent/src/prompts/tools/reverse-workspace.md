@@ -16,6 +16,17 @@ Actions:
   - Refuses deletion of protected artifacts without explicit confirmation decision; preserves minimal reproducibility manifest.
   - Verifies deletion postconditions and reports locked or in-use files honestly.
   - Supports `experimental_targets` to clean specific named experimental attempts only.
+- `begin`: Allocate an isolated experiment run directory under `.reverse/analysis/<workflow_id>/runs/<run_id>/{scripts,dumps,reports,tmp}` before producing artifacts.
+  - Requires `workflow_id`, `step_id`, `purpose`, and `command`; verifies workflow step and target SHA-256 against disk.
+  - Records streaming SHA-256 hashes for the target binary, explicit `inputs`, and any pre-existing `script_paths`.
+  - Returns managed directories, `run_id`, the 5 most recent runs for the same target SHA-256 (including failed attempts), and verified reusable script absolute paths for explicit `%load` or `bash` invocation.
+- `record`: Finalize an experiment run in `run.json` and link artifacts to the workflow step.
+  - Requires `workflow_id`, `run_id`, integer `exit_code` (`0` = `succeeded`, non-zero = `failed`), and `summary`.
+  - Re-verifies all recorded inputs and pre-existing scripts are unchanged; requires new `script_paths` and `output_paths` to reside within the run directory (and non-empty `output_paths` when `exit_code` is `0`).
+  - Validates `evidence_ids` exist, persists `run.json` atomically under lock, and lock-safely merges script, output, and `run.json` references into the workflow step's `artifact_refs` (idempotent on identical retries; rejects conflicting overwrites).
+- `recall`: Query managed `run.json` experiment history across sessions and verify file hashes before reusing scripts or outputs.
+  - Supports exact `workflow_id` and `target_hash` filters, case-insensitive `query` matching across `purpose`, `summary`, `command`, and `script_paths`, and `limit` (1–20, default 5) ordered newest-first.
+  - Re-checks recorded `inputs`, `scripts`, and `outputs` on disk to report `reuse_status` (`available` when `succeeded` and all hashes match, `changed` on hash drift, `missing` on absent files, `incomplete` for `failed` or `running` runs with failure summaries) alongside `reuse_reasons` and verified `reusable_script_paths`.
 Security & Integrity:
 - Target binaries are accessed strictly read-only and preserved by reference.
 - Atomic writes: files are written to temporary paths and atomically replaced.
@@ -24,6 +35,7 @@ Security & Integrity:
 - Artifact lifecycle protection: baseline builds, verified evidence, rollback patches, and user scripts are protected by default from automated deletion.
 - Postcondition verification: deletion is verified on disk; locked files or permission failures are reported honestly rather than assumed deleted.
 - Minimal reproducibility preservation: core artifact references and hashes are recorded in manifest reproducibility metadata.
+- Experiment run isolation: active runs under `.reverse/analysis/` enforce realpath/symlink containment, reject input/script drift before recording, and remain untouched by workspace `clean`.
 <examples>
 ```
 // 1. Export workflow to default .reverse/ workspace
@@ -37,5 +49,14 @@ reverse_workspace(action: "manifest")
 
 // 4. Clean heavy dump files from workspace
 reverse_workspace(action: "clean", clean_dumps_only: true)
+
+// 5. Begin an isolated experiment run for a workflow step
+reverse_workspace(action: "begin", workflow_id: "wf_rw_018f...", step_id: "elf_step_1", purpose: "Extract XOR key table from .rodata", command: "bun .reverse/analysis/wf_rw_018f.../runs/<run_id>/scripts/extract.ts")
+
+// 6. Record completed experiment run and link artifacts to the workflow step
+reverse_workspace(action: "record", workflow_id: "wf_rw_018f...", run_id: "run_018f...", exit_code: 0, summary: "Extracted 32-byte XOR key table", script_paths: [".reverse/analysis/wf_rw_018f.../runs/run_018f.../scripts/extract.ts"], output_paths: [".reverse/analysis/wf_rw_018f.../runs/run_018f.../dumps/key_table.json"])
+
+// 7. Recall prior experiments for a target hash or keyword before repeating work
+reverse_workspace(action: "recall", target_hash: "e3b0c442...", query: "xor key", limit: 5)
 ```
 </examples>

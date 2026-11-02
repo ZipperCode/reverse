@@ -99,6 +99,55 @@ export function sanitizeSessionString(value: string): string {
 	return redacted;
 }
 
+const MAX_SANITIZED_INITIATOR_FRAMES = 10;
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+	return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+/** 在不放开通用深度上限的前提下，保留有界（最多 10 帧）的 CDP initiator 结构并脱敏字符串。 */
+function sanitizeBoundedInitiator(raw: unknown): Record<string, unknown> | null {
+	if (!isPlainRecord(raw)) return null;
+	if (typeof raw.type !== "string" || raw.type.length === 0) return null;
+
+	const sanitized: Record<string, unknown> = {
+		type: sanitizeSessionString(raw.type),
+	};
+	if (typeof raw.url === "string" && raw.url.length > 0) {
+		sanitized.url = sanitizeSessionString(raw.url);
+	}
+	if (typeof raw.lineNumber === "number" && Number.isFinite(raw.lineNumber)) {
+		sanitized.lineNumber = raw.lineNumber;
+	}
+	if (typeof raw.columnNumber === "number" && Number.isFinite(raw.columnNumber)) {
+		sanitized.columnNumber = raw.columnNumber;
+	}
+	if (isPlainRecord(raw.stack) && Array.isArray(raw.stack.callFrames)) {
+		const callFrames: Array<Record<string, unknown>> = [];
+		for (const frame of raw.stack.callFrames) {
+			if (callFrames.length >= MAX_SANITIZED_INITIATOR_FRAMES) break;
+			if (!isPlainRecord(frame)) continue;
+			if (
+				typeof frame.lineNumber !== "number" ||
+				!Number.isFinite(frame.lineNumber) ||
+				typeof frame.columnNumber !== "number" ||
+				!Number.isFinite(frame.columnNumber)
+			) {
+				continue;
+			}
+			callFrames.push({
+				functionName: typeof frame.functionName === "string" ? sanitizeSessionString(frame.functionName) : "",
+				scriptId: typeof frame.scriptId === "string" ? sanitizeSessionString(frame.scriptId) : "",
+				url: typeof frame.url === "string" ? sanitizeSessionString(frame.url) : "",
+				lineNumber: frame.lineNumber,
+				columnNumber: frame.columnNumber,
+			});
+		}
+		sanitized.stack = { callFrames };
+	}
+	return sanitized;
+}
+
 export function sanitizeMetadataObject(
 	obj: unknown,
 	depth: number = 0,
@@ -117,7 +166,8 @@ export function sanitizeMetadataObject(
 	const result: Record<string, unknown> = {};
 	for (const [key, val] of Object.entries(obj as Record<string, unknown>)) {
 		const lowerKey = key.toLowerCase();
-		if (LIVE_HANDLE_KEYS[lowerKey]) {
+		// 仅剥离 IPC 句柄对象，保留事件的字符串 channel 字段
+		if (LIVE_HANDLE_KEYS[lowerKey] && !(lowerKey === "channel" && typeof val === "string")) {
 			continue;
 		}
 
@@ -143,6 +193,13 @@ export function sanitizeMetadataObject(
 
 		if (typeof val === "function" || typeof val === "symbol") {
 			continue;
+		}
+		if (lowerKey === "initiator") {
+			const boundedInitiator = sanitizeBoundedInitiator(val);
+			if (boundedInitiator) {
+				result[key] = boundedInitiator;
+				continue;
+			}
 		}
 
 		result[key] = sanitizeMetadataObject(val, depth + 1);
