@@ -363,13 +363,36 @@ describe("reverse_workflow target-first routing and deterministic plans", () => 
 			const originalSteps = created.details.workflow!.steps;
 			expect(created.details.recommendations?.map(r => r.tool)).toEqual(["app_experiment", "format_inspect"]);
 			const preview = await tool.execute("preview", { action: "plan", target, goal: "Inspect HTTP protocol" });
-			expect(preview.details.plan?.recommendations?.map(r => r.tool)).toEqual(["app_experiment", "format_inspect"]);
+			expect(preview.details.plan?.recommendations?.map(r => r.tool)).toEqual([
+				"app_experiment",
+				"format_inspect",
+				"protocol_sequence",
+			]);
 			expect(preview.details.plan?.steps.map(s => s.tool)).toEqual(originalSteps.map(s => s.tool));
 			const status = await tool.execute("status", { action: "status", workflow_id: created.details.workflow!.id });
 			expect(status.details.workflow!.steps).toEqual(originalSteps);
 		} finally {
 			await removeWithRetries(tempDir);
 		}
+	});
+	it("recommends finite-vector verification for recovery goals without changing triage steps", async () => {
+		const tool = new ReverseWorkflowTool(createTestSession(os.tmpdir()));
+		const baseline = await tool.execute("baseline", {
+			action: "plan",
+			format: "WASM",
+			target: "virtual/algorithm.wasm",
+		});
+		const recovery = await tool.execute("recovery", {
+			action: "plan",
+			format: "WASM",
+			target: "virtual/algorithm.wasm",
+			goal: "还原签名算法并差分验证",
+		});
+		expect(baseline.details.plan?.recommendations?.some(r => r.tool === "algorithm_verify")).toBe(false);
+		expect(recovery.details.plan?.recommendations?.find(r => r.tool === "algorithm_verify")?.actions).toEqual([
+			"verify",
+		]);
+		expect(recovery.details.plan?.steps.map(s => s.tool)).toEqual(baseline.details.plan?.steps.map(s => s.tool));
 	});
 });
 

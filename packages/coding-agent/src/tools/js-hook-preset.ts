@@ -50,9 +50,40 @@ export interface BrowserReverseEvent {
 	body?: unknown;
 	headers?: unknown;
 	algorithm?: unknown;
+	algorithmParameters?: Record<string, unknown> | null;
+	algorithmTruncated?: boolean;
+	format?: string;
+	extractable?: boolean;
+	keyUsages?: string[];
 	key?: unknown;
+	keyPreview?: string | null;
 	dataHex?: string;
+	dataPreview?: string;
+	dataByteLength?: number;
+	dataCapturedByteLength?: number;
+	dataTruncated?: boolean;
+	dataPreviewTruncated?: boolean;
+	signatureHex?: string;
+	signaturePreview?: string;
+	signatureByteLength?: number;
+	signatureCapturedByteLength?: number;
+	signatureTruncated?: boolean;
+	signaturePreviewTruncated?: boolean;
 	resultHex?: string;
+	resultPreview?: string;
+	resultByteLength?: number;
+	resultCapturedByteLength?: number;
+	resultTruncated?: boolean;
+	resultPreviewTruncated?: boolean;
+	verified?: boolean;
+	jwk?: Record<string, unknown>;
+	omittedFields?: string[];
+	truncatedFields?: string[];
+	truncated?: boolean;
+	complete?: boolean;
+	error?: string;
+	errorName?: string;
+	errorMessage?: string;
 	target?: string;
 	args?: unknown[];
 	result?: unknown;
@@ -374,6 +405,12 @@ const REA_EVENT_RECORDER_SNIPPET = `
           window.__rea_events__.shift();
         }
         window.__rea_events__.push(ev);
+      } else if (typeof globalThis !== "undefined") {
+        globalThis.__rea_events__ = globalThis.__rea_events__ || [];
+        if (globalThis.__rea_events__.length >= 1000) {
+          globalThis.__rea_events__.shift();
+        }
+        globalThis.__rea_events__.push(ev);
       }
     } catch {}
   };`;
@@ -703,42 +740,601 @@ function generateCryptoHook(
   const _includeStack = ${stackTrace};
   const _mode = ${modeJson};
 ${REA_EVENT_RECORDER_SNIPPET}
+  // 分离预览截断与有界完整原始字节捕获（原始字节上限为 Math.floor(_maxLen / 2)）：仅当参数与负载均未被截断/脱敏时 complete 才为 true，防止残缺数据误作差分恢复或 oracle 向量。
+  const _rawMaxBytes = Math.max(1, Math.floor(_maxLen / 2));
+  const _previewMaxBytes = Math.min(64, Math.max(8, Math.floor(_rawMaxBytes / 4)));
+  const _jwkSecretFields = { k: true, d: true, p: true, q: true, dp: true, dq: true, qi: true, oth: true };
+  // 使用每次安装独立的单调递增计数器生成事件 ID，避免调用 Math.random() 污染目标页面 RNG 状态或在固定随机种子下碰撞。
+  let _callSeq = 0;
+  function nextCallId(prefix) {
+    _callSeq += 1;
+    return prefix + "_" + _callSeq;
+  }
+  function extractBufferView(buffer) {
+    if (buffer === null || buffer === undefined) return null;
+    if (buffer instanceof ArrayBuffer) return new Uint8Array(buffer);
+    if (ArrayBuffer.isView(buffer)) return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    if (typeof SharedArrayBuffer !== "undefined" && buffer instanceof SharedArrayBuffer) return new Uint8Array(buffer);
+    return null;
+  }
+
+  function captureBuffer(buffer) {
+    const view = extractBufferView(buffer);
+    if (!view) return null;
+    const totalBytes = view.byteLength;
+    const rawLimit = Math.min(totalBytes, _rawMaxBytes);
+    let hex = "";
+    for (let i = 0; i < rawLimit; i++) hex += view[i].toString(16).padStart(2, "0");
+    const previewLimit = Math.min(totalBytes, _previewMaxBytes);
+    const previewHex =
+      hex.slice(0, previewLimit * 2) +
+      (totalBytes > previewLimit ? "...[+" + (totalBytes - previewLimit) + " bytes]" : "");
+    return {
+      hex,
+      previewHex,
+      byteLength: totalBytes,
+      capturedByteLength: rawLimit,
+      truncated: totalBytes > rawLimit,
+      previewTruncated: totalBytes > previewLimit,
+      complete: totalBytes <= rawLimit,
+    };
+  }
 
   function toHex(buffer) {
-    if (!buffer) return "[null]";
-    const view = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : (ArrayBuffer.isView(buffer) ? new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength) : null);
-    if (!view) return String(buffer);
-    const limit = Math.min(view.length, Math.floor(_maxLen / 2));
-    let hex = "";
-    for (let i = 0; i < limit; i++) hex += view[i].toString(16).padStart(2, "0");
-    if (view.length > limit) hex += "...[+" + (view.length - limit) + " bytes]";
-    return hex;
+    if (buffer === null || buffer === undefined) return "[null]";
+    const captured = captureBuffer(buffer);
+    if (!captured) return String(buffer);
+    return captured.previewHex;
+  }
+
+  function isCryptoKey(val) {
+    return Boolean(
+      val &&
+        typeof val === "object" &&
+        ((typeof CryptoKey !== "undefined" && val instanceof CryptoKey) ||
+          (typeof val.type === "string" &&
+            typeof val.extractable === "boolean" &&
+            val.algorithm &&
+            Array.isArray(val.usages)))
+    );
+  }
+
+  // 仅记录 CryptoKey 元数据（type/extractable/algorithm/usages），绝不自动调用 exportKey 提取密钥字节。
+  function summarizeCryptoKey(key, depth = 0) {
+    if (!isCryptoKey(key)) return null;
+    const keyAlgo = normalizeAlgorithm(key.algorithm, depth + 1);
+    const usages = [];
+    const usageCharLimit = Math.min(_maxLen, 256);
+    let usagesTruncated = false;
+    if (key.usages && typeof key.usages.length === "number") {
+      const limit = Math.min(key.usages.length, 16);
+      if (key.usages.length > limit) usagesTruncated = true;
+      for (let i = 0; i < limit; i++) {
+        const u = String(key.usages[i]);
+        if (u.length > usageCharLimit) {
+          usages.push(u.slice(0, usageCharLimit) + "...[truncated]");
+          usagesTruncated = true;
+        } else {
+          usages.push(u);
+        }
+      }
+    }
+    const summary = {
+      type: String(key.type),
+      extractable: Boolean(key.extractable),
+      algorithm: keyAlgo.params,
+      usages,
+    };
+    if (keyAlgo.truncated || usagesTruncated) {
+      summary.truncated = true;
+    }
+    return summary;
+  }
+
+  function summarizeKeyOrPair(val) {
+    if (isCryptoKey(val)) return summarizeCryptoKey(val);
+    if (val && typeof val === "object" && (isCryptoKey(val.publicKey) || isCryptoKey(val.privateKey))) {
+      return {
+        publicKey: summarizeCryptoKey(val.publicKey),
+        privateKey: summarizeCryptoKey(val.privateKey),
+      };
+    }
+    return null;
+  }
+
+  function formatKeyPreview(key) {
+    const summary = summarizeKeyOrPair(key);
+    if (!summary) return key !== undefined && key !== null ? "[key]" : null;
+    if ("publicKey" in summary || "privateKey" in summary) {
+      return "[CryptoKeyPair]";
+    }
+    const algoName = summary.algorithm && summary.algorithm.name ? summary.algorithm.name : "unknown";
+    return (
+      "[CryptoKey type=" +
+      summary.type +
+      " algorithm=" +
+      algoName +
+      " extractable=" +
+      summary.extractable +
+      " usages=" +
+      summary.usages.join(",") +
+      "]"
+    );
+  }
+
+  function normalizeAlgorithm(algo, depth = 0) {
+    if (algo === null || algo === undefined) {
+      return { name: "[unknown]", params: null, truncated: false, omittedFields: [] };
+    }
+    if (typeof algo === "string") {
+      const truncated = algo.length > _maxLen;
+      const name = truncated ? algo.slice(0, _maxLen) : algo;
+      return { name, params: { name }, truncated, omittedFields: [] };
+    }
+    if (typeof algo !== "object") {
+      const str = String(algo);
+      return { name: str, params: { name: str }, truncated: false, omittedFields: [] };
+    }
+    if (depth > 3) {
+      return { name: "[nested]", params: null, truncated: true, omittedFields: [] };
+    }
+    const params = {};
+    let truncated = false;
+    const maxAlgoKeys = 16;
+    const maxOmittedReport = 8;
+    const itemCharLimit = Math.min(_maxLen, 256);
+    const orderedKeys = [];
+    const seenKeys = new Set();
+    for (const candidate of [
+      "name",
+      "iv",
+      "additionalData",
+      "tagLength",
+      "counter",
+      "length",
+      "hash",
+      "salt",
+      "saltLength",
+      "label",
+      "iterations",
+      "namedCurve",
+      "modulusLength",
+      "publicExponent",
+      "public",
+      "info",
+    ]) {
+      if (candidate in algo) {
+        orderedKeys.push(candidate);
+        seenKeys.add(candidate);
+      }
+    }
+    const ownKeys = Object.keys(algo);
+    const omittedFields = [];
+    for (let i = 0; i < ownKeys.length; i++) {
+      const k = ownKeys[i];
+      if (seenKeys.has(k)) continue;
+      if (orderedKeys.length < maxAlgoKeys) {
+        orderedKeys.push(k);
+        seenKeys.add(k);
+      } else {
+        truncated = true;
+        if (omittedFields.length < maxOmittedReport) {
+          omittedFields.push(k);
+        } else {
+          omittedFields.push("...[+" + (ownKeys.length - i) + " keys]");
+          break;
+        }
+      }
+    }
+    for (const key of orderedKeys) {
+      let val;
+      try {
+        val = algo[key];
+      } catch {
+        truncated = true;
+        continue;
+      }
+      if (val === undefined || typeof val === "function") continue;
+      if (val === null || typeof val === "number" || typeof val === "boolean") {
+        params[key] = val;
+        continue;
+      }
+      if (typeof val === "string") {
+        if (val.length > _maxLen) {
+          params[key] = val.slice(0, _maxLen);
+          truncated = true;
+        } else {
+          params[key] = val;
+        }
+        continue;
+      }
+      const bufCap = captureBuffer(val);
+      if (bufCap) {
+        params[key] = bufCap.hex;
+        params[key + "Hex"] = bufCap.hex;
+        params[key + "PreviewHex"] = bufCap.previewHex;
+        params[key + "ByteLength"] = bufCap.byteLength;
+        params[key + "CapturedByteLength"] = bufCap.capturedByteLength;
+        params[key + "Truncated"] = bufCap.truncated;
+        if (bufCap.truncated) truncated = true;
+        continue;
+      }
+      if (isCryptoKey(val)) {
+        const keySum = summarizeCryptoKey(val, depth + 1);
+        params[key] = keySum;
+        if (keySum && keySum.truncated) truncated = true;
+        continue;
+      }
+      if (Array.isArray(val)) {
+        const limit = Math.min(val.length, 16);
+        const arr = [];
+        for (let i = 0; i < limit; i++) {
+          const rawItem = val[i];
+          const itemStr = typeof rawItem === "string" ? rawItem : String(rawItem);
+          if (itemStr.length > itemCharLimit) {
+            arr.push(itemStr.slice(0, itemCharLimit) + "...[truncated]");
+            truncated = true;
+          } else {
+            arr.push(itemStr);
+          }
+        }
+        params[key] = arr;
+        if (val.length > limit) truncated = true;
+        continue;
+      }
+      if (typeof val === "object") {
+        const nested = normalizeAlgorithm(val, depth + 1);
+        params[key] = nested.params;
+        if (nested.truncated) truncated = true;
+        if (nested.omittedFields && nested.omittedFields.length > 0) {
+          for (let i = 0; i < nested.omittedFields.length && omittedFields.length < maxOmittedReport; i++) {
+            omittedFields.push(key + "." + nested.omittedFields[i]);
+          }
+        }
+      }
+    }
+    if (omittedFields.length > 0) {
+      params._omittedFields = omittedFields;
+    }
+    const name =
+      typeof params.name === "string" && params.name
+        ? params.name
+        : typeof algo.name === "string" && algo.name
+          ? algo.name
+          : "[unknown]";
+    return { name, params, truncated, omittedFields };
+  }
+
+  // JWK 捕获保持有界并脱敏私钥/对称密钥字段（k/d/p/q/dp/dq/qi/oth），发生字段脱敏或截断时显式标记 complete=false。
+  function captureBoundedJwk(jwkObj) {
+    if (!jwkObj || typeof jwkObj !== "object") return null;
+    const keys = Object.keys(jwkObj);
+    const maxKeys = 24;
+    const maxOmittedReport = 8;
+    const fieldCharLimit = Math.min(_maxLen, 1024);
+    const jwk = {};
+    const omittedFields = [];
+    const truncatedFields = [];
+    let truncated = false;
+
+    if (keys.length > maxKeys) {
+      truncated = true;
+      const reportLimit = Math.min(keys.length, maxKeys + maxOmittedReport);
+      for (let i = maxKeys; i < reportLimit; i++) {
+        omittedFields.push(keys[i]);
+      }
+      if (keys.length > reportLimit) {
+        omittedFields.push("...[+" + (keys.length - reportLimit) + " keys]");
+      }
+    }
+
+    const limit = Math.min(keys.length, maxKeys);
+    for (let i = 0; i < limit; i++) {
+      const k = keys[i];
+      const v = jwkObj[k];
+      if (_jwkSecretFields[k] && v !== undefined && v !== null) {
+        jwk[k] = "[REDACTED]";
+        omittedFields.push(k);
+        truncated = true;
+        continue;
+      }
+      if (typeof v === "string") {
+        if (v.length > fieldCharLimit) {
+          jwk[k] = v.slice(0, fieldCharLimit) + "...[truncated]";
+          truncatedFields.push(k);
+          truncated = true;
+        } else {
+          jwk[k] = v;
+        }
+      } else if (typeof v === "number" || typeof v === "boolean" || v === null) {
+        jwk[k] = v;
+      } else if (Array.isArray(v)) {
+        const arrLimit = Math.min(v.length, 16);
+        let itemTruncated = v.length > arrLimit;
+        const mapped = [];
+        for (let j = 0; j < arrLimit; j++) {
+          const rawItem = v[j];
+          const itemStr = typeof rawItem === "string" ? rawItem : String(rawItem);
+          if (itemStr.length > fieldCharLimit) {
+            mapped.push(itemStr.slice(0, fieldCharLimit) + "...[truncated]");
+            itemTruncated = true;
+          } else {
+            mapped.push(itemStr);
+          }
+        }
+        jwk[k] = mapped;
+        if (itemTruncated) {
+          truncatedFields.push(k);
+          truncated = true;
+        }
+      } else if (v !== undefined) {
+        jwk[k] = "[omitted]";
+        omittedFields.push(k);
+        truncated = true;
+      }
+    }
+
+    const previewParts = [];
+    if (typeof jwk.kty === "string") previewParts.push("kty=" + jwk.kty);
+    if (typeof jwk.crv === "string") previewParts.push("crv=" + jwk.crv);
+    if (typeof jwk.alg === "string") previewParts.push("alg=" + jwk.alg);
+    if (typeof jwk.ext === "boolean") previewParts.push("ext=" + jwk.ext);
+    if (omittedFields.length > 0) previewParts.push("omitted=" + omittedFields.join(","));
+    if (truncatedFields.length > 0) previewParts.push("truncated=" + truncatedFields.join(","));
+    const preview = "[JWK " + (previewParts.length > 0 ? previewParts.join(" ") : "object") + "]";
+
+    return {
+      jwk,
+      preview,
+      omittedFields,
+      truncatedFields,
+      truncated,
+      complete: !truncated && omittedFields.length === 0 && truncatedFields.length === 0,
+    };
+  }
+
+  // 按 Web Crypto 各方法真实签名提取参数：
+  // digest(algorithm, data)
+  // encrypt/decrypt/sign(algorithm, key, data)
+  // verify(algorithm, key, signature, data)
+  // importKey(format, keyData, algorithm, extractable, keyUsages)
+  // exportKey(format, key)
+  function parseSubtleCallArgs(method, args) {
+    if (method === "digest") {
+      const algoInfo = normalizeAlgorithm(args[0]);
+      const dataCap = captureBuffer(args[1]);
+      const callTruncated = Boolean(algoInfo.truncated || !dataCap || dataCap.truncated);
+      const callComplete = Boolean(!algoInfo.truncated && dataCap && dataCap.complete);
+      return {
+        algoName: algoInfo.name,
+        algoParams: algoInfo.params,
+        algoTruncated: algoInfo.truncated,
+        algoOmittedFields: algoInfo.omittedFields,
+        keySummary: undefined,
+        keyPreview: null,
+        dataCap,
+        sigCap: null,
+        format: undefined,
+        extractable: undefined,
+        keyUsages: undefined,
+        jwkCap: null,
+        callTruncated,
+        callComplete,
+      };
+    }
+    if (method === "verify") {
+      const algoInfo = normalizeAlgorithm(args[0]);
+      const keySummary = summarizeKeyOrPair(args[1]);
+      const keyTruncated = Boolean(keySummary && keySummary.truncated);
+      const keyPreview = formatKeyPreview(args[1]);
+      const sigCap = captureBuffer(args[2]);
+      const dataCap = captureBuffer(args[3]);
+      const callTruncated = Boolean(
+        algoInfo.truncated || keyTruncated || !sigCap || sigCap.truncated || !dataCap || dataCap.truncated
+      );
+      const callComplete = Boolean(
+        !algoInfo.truncated && !keyTruncated && sigCap && sigCap.complete && dataCap && dataCap.complete
+      );
+      return {
+        algoName: algoInfo.name,
+        algoParams: algoInfo.params,
+        algoTruncated: algoInfo.truncated,
+        algoOmittedFields: algoInfo.omittedFields,
+        keySummary,
+        keyPreview,
+        dataCap,
+        sigCap,
+        format: undefined,
+        extractable: undefined,
+        keyUsages: undefined,
+        jwkCap: null,
+        callTruncated,
+        callComplete,
+      };
+    }
+    if (method === "importKey") {
+      const format = args[0] !== undefined && args[0] !== null ? String(args[0]) : "[unknown]";
+      const keyDataArg = args[1];
+      const algoInfo = normalizeAlgorithm(args[2]);
+      const extractable = Boolean(args[3]);
+      const usageCharLimit = Math.min(_maxLen, 256);
+      const keyUsages = [];
+      let usagesTruncated = false;
+      if (Array.isArray(args[4])) {
+        const uLimit = Math.min(args[4].length, 16);
+        if (args[4].length > uLimit) usagesTruncated = true;
+        for (let i = 0; i < uLimit; i++) {
+          const uStr = String(args[4][i]);
+          if (uStr.length > usageCharLimit) {
+            keyUsages.push(uStr.slice(0, usageCharLimit) + "...[truncated]");
+            usagesTruncated = true;
+          } else {
+            keyUsages.push(uStr);
+          }
+        }
+      }
+      const dataCap = captureBuffer(keyDataArg);
+      const jwkCap = !dataCap && keyDataArg && typeof keyDataArg === "object" ? captureBoundedJwk(keyDataArg) : null;
+      const keyPreview = dataCap
+        ? "[KeyData format=" +
+          format +
+          " byteLength=" +
+          dataCap.byteLength +
+          " extractable=" +
+          extractable +
+          " usages=" +
+          keyUsages.join(",") +
+          "]"
+        : jwkCap
+          ? jwkCap.preview
+          : "[KeyData format=" + format + "]";
+      const callTruncated = Boolean(
+        algoInfo.truncated || usagesTruncated || (dataCap ? dataCap.truncated : jwkCap ? jwkCap.truncated : true)
+      );
+      const callComplete = Boolean(
+        !algoInfo.truncated && !usagesTruncated && (dataCap ? dataCap.complete : jwkCap ? jwkCap.complete : false)
+      );
+      return {
+        algoName: algoInfo.name,
+        algoParams: algoInfo.params,
+        algoTruncated: algoInfo.truncated,
+        algoOmittedFields: algoInfo.omittedFields,
+        keySummary: undefined,
+        keyPreview,
+        dataCap,
+        sigCap: null,
+        format,
+        extractable,
+        keyUsages,
+        jwkCap,
+        callTruncated,
+        callComplete,
+      };
+    }
+    if (method === "exportKey") {
+      const format = args[0] !== undefined && args[0] !== null ? String(args[0]) : "[unknown]";
+      const keyArg = args[1];
+      const keySummary = summarizeKeyOrPair(keyArg);
+      const keyTruncated = Boolean(keySummary && keySummary.truncated);
+      const keyPreview = formatKeyPreview(keyArg);
+      const algoInfo =
+        keyArg && typeof keyArg === "object" && keyArg.algorithm
+          ? normalizeAlgorithm(keyArg.algorithm)
+          : { name: format, params: { format }, truncated: false, omittedFields: [] };
+      const callTruncated = Boolean(algoInfo.truncated || keyTruncated);
+      const callComplete = Boolean(!algoInfo.truncated && !keyTruncated && keySummary !== null);
+      return {
+        algoName: algoInfo.name,
+        algoParams: algoInfo.params,
+        algoTruncated: algoInfo.truncated,
+        algoOmittedFields: algoInfo.omittedFields,
+        keySummary,
+        keyPreview,
+        dataCap: null,
+        sigCap: null,
+        format,
+        extractable: keySummary && "extractable" in keySummary ? keySummary.extractable : undefined,
+        keyUsages: keySummary && "usages" in keySummary ? keySummary.usages : undefined,
+        jwkCap: null,
+        callTruncated,
+        callComplete,
+      };
+    }
+    // encrypt, decrypt, sign
+    const algoInfo = normalizeAlgorithm(args[0]);
+    const keySummary = summarizeKeyOrPair(args[1]);
+    const keyTruncated = Boolean(keySummary && keySummary.truncated);
+    const keyPreview = formatKeyPreview(args[1]);
+    const dataCap = captureBuffer(args[2]);
+    const callTruncated = Boolean(algoInfo.truncated || keyTruncated || !dataCap || dataCap.truncated);
+    const callComplete = Boolean(!algoInfo.truncated && !keyTruncated && dataCap && dataCap.complete);
+    return {
+      algoName: algoInfo.name,
+      algoParams: algoInfo.params,
+      algoTruncated: algoInfo.truncated,
+      algoOmittedFields: algoInfo.omittedFields,
+      keySummary,
+      keyPreview,
+      dataCap,
+      sigCap: null,
+      format: undefined,
+      extractable: undefined,
+      keyUsages: undefined,
+      jwkCap: null,
+      callTruncated,
+      callComplete,
+    };
   }
 
   const methods = ["encrypt", "decrypt", "digest", "importKey", "exportKey", "sign", "verify"];
   for (const method of methods) {
     if (typeof crypto.subtle[method] !== "function") continue;
     const origMethod = crypto.subtle[method];
-    crypto.subtle[method] = async function(...args) {
-      const callId = Math.random().toString(36).slice(2, 8);
-      const algo = args[0] ? (typeof args[0] === "string" ? args[0] : (args[0].name || JSON.stringify(args[0]))) : "[unknown]";
-      const shouldLog = !_filter || String(algo).includes(_filter) || method.includes(_filter);
+    const wrappedMethod = async function(...args) {
+      const callId = nextCallId("cry");
+      const parsed = parseSubtleCallArgs(method, args);
+      const algo = parsed.algoName;
+      let filterText = String(algo) + " " + method + (parsed.format ? " " + parsed.format : "");
+      try {
+        if (parsed.algoParams) filterText += " " + JSON.stringify(parsed.algoParams);
+      } catch {}
+      const shouldLog = !_filter || filterText.includes(_filter);
 
       if (shouldLog) {
-        _reaRecord({
+        const callEvent = {
           timestamp: Date.now(),
           type: "crypto_call",
           id: callId,
           method,
           algorithm: algo,
-          keyPreview: args[1] ? String(args[1]) : null,
-          dataHex: toHex(args[2]),
-        });
+          algorithmParameters: parsed.algoParams,
+          algorithmTruncated: parsed.algoTruncated,
+          keyPreview: parsed.keyPreview,
+          truncated: parsed.callTruncated,
+          complete: parsed.callComplete,
+        };
+        if (parsed.keySummary !== undefined) callEvent.key = parsed.keySummary;
+        if (parsed.format !== undefined) callEvent.format = parsed.format;
+        if (parsed.extractable !== undefined) callEvent.extractable = parsed.extractable;
+        if (parsed.keyUsages !== undefined) callEvent.keyUsages = parsed.keyUsages;
+        if (parsed.algoOmittedFields && parsed.algoOmittedFields.length > 0) {
+          callEvent.omittedFields = parsed.algoOmittedFields.slice();
+        }
+        if (parsed.sigCap) {
+          callEvent.signatureHex = parsed.sigCap.hex;
+          callEvent.signaturePreview = parsed.sigCap.previewHex;
+          callEvent.signatureByteLength = parsed.sigCap.byteLength;
+          callEvent.signatureCapturedByteLength = parsed.sigCap.capturedByteLength;
+          callEvent.signatureTruncated = parsed.sigCap.truncated;
+          callEvent.signaturePreviewTruncated = parsed.sigCap.previewTruncated;
+        }
+        if (parsed.dataCap) {
+          callEvent.dataHex = parsed.dataCap.hex;
+          callEvent.dataPreview =
+            method === "importKey" && parsed.format !== "spki"
+              ? "[redacted keyData: " + parsed.dataCap.byteLength + " bytes]"
+              : parsed.dataCap.previewHex;
+          callEvent.dataByteLength = parsed.dataCap.byteLength;
+          callEvent.dataCapturedByteLength = parsed.dataCap.capturedByteLength;
+          callEvent.dataTruncated = parsed.dataCap.truncated;
+          callEvent.dataPreviewTruncated = parsed.dataCap.previewTruncated;
+        } else if (parsed.jwkCap) {
+          callEvent.jwk = parsed.jwkCap.jwk;
+          callEvent.dataPreview = parsed.jwkCap.preview;
+          callEvent.omittedFields = callEvent.omittedFields
+            ? callEvent.omittedFields.concat(parsed.jwkCap.omittedFields)
+            : parsed.jwkCap.omittedFields;
+          callEvent.truncatedFields = parsed.jwkCap.truncatedFields;
+          callEvent.dataTruncated = parsed.jwkCap.truncated;
+        }
+        _reaRecord(callEvent);
+
         console.groupCollapsed(\`%c[CRYPTO \${method.toUpperCase()} #\${callId}]%c \${algo}\`, "color:#ec4899;font-weight:bold;", "color:inherit;");
         console.log("Method:", method);
-        console.log("Algorithm:", args[0]);
-        if (args[1]) console.log("Key / Arg1:", args[1]);
-        if (args[2]) console.log("Data Hex / Arg2:", toHex(args[2]));
+        console.log("Algorithm:", algo, parsed.algoParams);
+        if (parsed.keyPreview) console.log("Key:", parsed.keyPreview);
+        if (parsed.sigCap) console.log("Signature Preview:", parsed.sigCap.previewHex);
+        if (callEvent.dataPreview) console.log("Data Preview:", callEvent.dataPreview);
         if (_includeStack) console.log("Call Stack:", new Error().stack);
         console.groupEnd();
 
@@ -750,15 +1346,73 @@ ${REA_EVENT_RECORDER_SNIPPET}
       try {
         const result = await origMethod.apply(this, args);
         if (shouldLog) {
-          _reaRecord({
+          const resEvent = {
             timestamp: Date.now(),
             type: "crypto_result",
             id: callId,
             method,
-            resultHex: toHex(result),
-          });
+            algorithm: algo,
+            algorithmParameters: parsed.algoParams,
+          };
+          const resCap = captureBuffer(result);
+          const resKeySummary = !resCap ? summarizeKeyOrPair(result) : null;
+          const resJwkCap =
+            !resCap && !resKeySummary && result && typeof result === "object"
+              ? captureBoundedJwk(result)
+              : null;
+
+          if (typeof result === "boolean") {
+            resEvent.result = result;
+            resEvent.verified = result;
+            resEvent.resultHex = String(result);
+            resEvent.resultPreview = String(result);
+            resEvent.resultTruncated = false;
+            resEvent.resultPreviewTruncated = false;
+            resEvent.truncated = parsed.callTruncated;
+            resEvent.complete = parsed.callComplete;
+          } else if (resCap) {
+            const isSecretExport =
+              method === "exportKey" &&
+              parsed.keySummary &&
+              (parsed.keySummary.type === "secret" || parsed.keySummary.type === "private");
+            resEvent.resultHex = resCap.hex;
+            resEvent.resultPreview = isSecretExport
+              ? "[redacted exported " + parsed.keySummary.type + " key: " + resCap.byteLength + " bytes]"
+              : resCap.previewHex;
+            resEvent.resultByteLength = resCap.byteLength;
+            resEvent.resultCapturedByteLength = resCap.capturedByteLength;
+            resEvent.resultTruncated = resCap.truncated;
+            resEvent.resultPreviewTruncated = resCap.previewTruncated;
+            resEvent.truncated = Boolean(parsed.callTruncated || resCap.truncated);
+            resEvent.complete = Boolean(parsed.callComplete && resCap.complete);
+          } else if (resKeySummary) {
+            resEvent.key = resKeySummary;
+            resEvent.result = resKeySummary;
+            resEvent.resultPreview = formatKeyPreview(result);
+            resEvent.resultTruncated = false;
+            resEvent.resultPreviewTruncated = false;
+            resEvent.truncated = parsed.callTruncated;
+            resEvent.complete = parsed.callComplete;
+          } else if (resJwkCap) {
+            resEvent.result = resJwkCap.jwk;
+            resEvent.jwk = resJwkCap.jwk;
+            resEvent.resultPreview = resJwkCap.preview;
+            resEvent.omittedFields = resJwkCap.omittedFields;
+            resEvent.truncatedFields = resJwkCap.truncatedFields;
+            resEvent.resultTruncated = resJwkCap.truncated;
+            resEvent.truncated = Boolean(parsed.callTruncated || resJwkCap.truncated);
+            resEvent.complete = Boolean(parsed.callComplete && resJwkCap.complete);
+          } else {
+            resEvent.result = result;
+            resEvent.resultHex = toHex(result);
+            resEvent.resultPreview = toHex(result);
+            resEvent.resultTruncated = false;
+            resEvent.truncated = parsed.callTruncated;
+            resEvent.complete = parsed.callComplete;
+          }
+          _reaRecord(resEvent);
           console.groupCollapsed(\`%c[CRYPTO \${method.toUpperCase()} RES #\${callId}]%c Result\`, "color:#10b981;font-weight:bold;", "color:inherit;");
-          console.log("Result Hex/Summary:", toHex(result));
+          console.log("Result Preview:", resEvent.resultPreview);
           console.groupEnd();
         }
         return result;
@@ -769,30 +1423,67 @@ ${REA_EVENT_RECORDER_SNIPPET}
             type: "crypto_error",
             id: callId,
             method,
+            algorithm: algo,
+            algorithmParameters: parsed.algoParams,
             error: String(err),
+            errorName: err && typeof err === "object" && "name" in err ? String(err.name) : undefined,
+            errorMessage: err && typeof err === "object" && "message" in err ? String(err.message) : String(err),
+            truncated: parsed.callTruncated,
+            complete: false,
           });
           console.error(\`[CRYPTO \${method.toUpperCase()} ERR #\${callId}]\`, err);
         }
         throw err;
       }
     };
+    try {
+      crypto.subtle[method] = wrappedMethod;
+    } catch {
+      try {
+        Object.defineProperty(crypto.subtle, method, {
+          value: wrappedMethod,
+          configurable: true,
+          writable: true,
+        });
+      } catch {}
+    }
   }
 
   if (typeof crypto.getRandomValues === "function") {
     const origGetRandomValues = crypto.getRandomValues.bind(crypto);
-    crypto.getRandomValues = function(array) {
+    const wrappedGetRandomValues = function(array) {
       const res = origGetRandomValues(array);
       if (!_filter || "getRandomValues".includes(_filter)) {
+        const randId = nextCallId("rng");
+        const cap = captureBuffer(array);
         _reaRecord({
           timestamp: Date.now(),
           type: "crypto_random",
-          byteLength: array.byteLength,
-          dataHex: toHex(array),
+          id: randId,
+          byteLength: cap ? cap.byteLength : array.byteLength,
+          capturedByteLength: cap ? cap.capturedByteLength : array.byteLength,
+          dataHex: cap ? cap.hex : toHex(array),
+          dataPreview: cap ? cap.previewHex : toHex(array),
+          dataTruncated: cap ? cap.truncated : false,
+          dataPreviewTruncated: cap ? cap.previewTruncated : false,
+          truncated: cap ? cap.truncated : false,
+          complete: cap ? cap.complete : true,
         });
-        console.log(\`%c[CRYPTO getRandomValues]%c \${array.byteLength} bytes -> \${toHex(array)}\`, "color:#ec4899;font-weight:bold;", "color:inherit;");
+        console.log(\`%c[CRYPTO getRandomValues]%c \${array.byteLength} bytes -> \${cap ? cap.previewHex : toHex(array)}\`, "color:#ec4899;font-weight:bold;", "color:inherit;");
       }
       return res;
     };
+    try {
+      crypto.getRandomValues = wrappedGetRandomValues;
+    } catch {
+      try {
+        Object.defineProperty(crypto, "getRandomValues", {
+          value: wrappedGetRandomValues,
+          configurable: true,
+          writable: true,
+        });
+      } catch {}
+    }
   }
 
   console.log("%c[REA HOOK]%c crypto.subtle hook installed successfully.", "color:#6366f1;font-weight:bold;", "color:inherit;");
@@ -1045,9 +1736,21 @@ function generateCustomHook(
   const _includeStack = ${stackTrace};
   const _mode = ${modeJson};
 ${REA_EVENT_RECORDER_SNIPPET}
+  let _callSeq = 0;
+  function nextCallId() {
+    _callSeq += 1;
+    return "cus_" + _callSeq;
+  }
 
   function truncate(val) {
     try {
+      if (val instanceof ArrayBuffer || ArrayBuffer.isView(val)) {
+        const view = val instanceof ArrayBuffer ? new Uint8Array(val) : new Uint8Array(val.buffer, val.byteOffset, val.byteLength);
+        const limit = Math.min(view.byteLength, Math.max(1, Math.floor(_maxLen / 2)));
+        let hex = "";
+        for (let i = 0; i < limit; i++) hex += view[i].toString(16).padStart(2, "0");
+        return view.byteLength > limit ? hex + "...[+" + (view.byteLength - limit) + " bytes]" : hex;
+      }
       const s = typeof val === "string" ? val : JSON.stringify(val);
       return s && s.length > _maxLen ? s.slice(0, _maxLen) + "...[truncated]" : s;
     } catch {}
@@ -1070,17 +1773,25 @@ ${REA_EVENT_RECORDER_SNIPPET}
 
   if (typeof origVal === "function") {
     parent[leafProp] = function(...args) {
-      const shouldLog = !_filter || _targetPath.includes(_filter) || JSON.stringify(args).includes(_filter);
+      const callId = nextCallId();
+      const mappedArgs = args.map(truncate);
+      let shouldLog = !_filter || _targetPath.includes(_filter);
+      if (!shouldLog && _filter) {
+        try {
+          shouldLog = mappedArgs.some(a => String(a).includes(_filter));
+        } catch {}
+      }
       if (shouldLog) {
         _reaRecord({
           timestamp: Date.now(),
           type: "custom_call",
+          id: callId,
           target: _targetPath,
-          args: args.map(truncate),
+          args: mappedArgs,
         });
         console.groupCollapsed(\`%c[CUSTOM HOOK]%c \${_targetPath}()\`, "color:#f43f5e;font-weight:bold;", "color:inherit;");
         console.log("Target:", _targetPath);
-        console.log("Arguments:", args.map(truncate));
+        console.log("Arguments:", mappedArgs);
         if (_includeStack) console.log("Call Stack:", new Error().stack);
         console.groupEnd();
 
@@ -1091,16 +1802,57 @@ ${REA_EVENT_RECORDER_SNIPPET}
           return undefined;
         }
       }
-      const res = origVal.apply(this, args);
-      if (shouldLog) {
-        _reaRecord({
-          timestamp: Date.now(),
-          type: "custom_result",
-          target: _targetPath,
-          result: truncate(res),
-        });
+      try {
+        const res = origVal.apply(this, args);
+        if (res && typeof res.then === "function") {
+          res.then(
+            resolved => {
+              if (shouldLog) {
+                _reaRecord({
+                  timestamp: Date.now(),
+                  type: "custom_result",
+                  id: callId,
+                  target: _targetPath,
+                  result: truncate(resolved),
+                });
+              }
+            },
+            err => {
+              if (shouldLog) {
+                _reaRecord({
+                  timestamp: Date.now(),
+                  type: "custom_error",
+                  id: callId,
+                  target: _targetPath,
+                  error: String(err),
+                });
+              }
+            }
+          );
+          return res;
+        }
+        if (shouldLog) {
+          _reaRecord({
+            timestamp: Date.now(),
+            type: "custom_result",
+            id: callId,
+            target: _targetPath,
+            result: truncate(res),
+          });
+        }
+        return res;
+      } catch (err) {
+        if (shouldLog) {
+          _reaRecord({
+            timestamp: Date.now(),
+            type: "custom_error",
+            id: callId,
+            target: _targetPath,
+            error: String(err),
+          });
+        }
+        throw err;
       }
-      return res;
     };
     console.log(\`%c[REA HOOK]%c Function trap placed on \${_targetPath}\`, "color:#6366f1;font-weight:bold;", "color:inherit;");
   } else {
@@ -1297,7 +2049,7 @@ export class JsHookPresetTool implements AgentTool<typeof jsHookPresetSchema, Js
 			const filter = params.filter ? params.filter.trim() : null;
 			const stackTrace = params.stack_trace !== false;
 			const tamperMode: HookTamperMode = params.tamper_mode || "log";
-			const maxLen = Math.min(32768, Math.max(64, Math.floor(params.max_payload_length ?? 1024)));
+			const maxLen = Math.min(32768, Math.max(16, Math.floor(params.max_payload_length ?? 1024)));
 			const target = params.target ? params.target.trim() : undefined;
 
 			let rawScript = "";
@@ -1381,7 +2133,7 @@ export class JsHookPresetTool implements AgentTool<typeof jsHookPresetSchema, Js
 			const filter = params.filter ? params.filter.trim() : null;
 			const stackTrace = params.stack_trace !== false;
 			const tamperMode: HookTamperMode = params.tamper_mode || "log";
-			const maxLen = Math.min(32768, Math.max(64, Math.floor(params.max_payload_length ?? 1024)));
+			const maxLen = Math.min(32768, Math.max(16, Math.floor(params.max_payload_length ?? 1024)));
 			const target = params.target ? params.target.trim() : undefined;
 			const tabName = params.tab_name?.trim() || "main";
 

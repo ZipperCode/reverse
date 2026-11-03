@@ -105,6 +105,8 @@ import { CrashdumpInspectTool } from "./crashdump-inspect";
 import { BinaryMetadataInspectTool } from "./binary-metadata-inspect";
 import { ElfInspectTool } from "./elf-inspect";
 import { FormatInspectTool } from "./format-inspect";
+import { ProtocolSequenceTool } from "./protocol-sequence";
+import { AlgorithmVerifyTool } from "./algorithm-verify";
 import { CapabilityInspectTool } from "./capability-inspect";
 import { EvmInspectTool } from "./evm-inspect";
 import { BinaryDiffTool } from "./binary-diff";
@@ -686,6 +688,8 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	binary_metadata_inspect: s => new BinaryMetadataInspectTool(s),
 	elf_inspect: s => new ElfInspectTool(s),
 	format_inspect: s => new FormatInspectTool(s),
+	protocol_sequence: s => new ProtocolSequenceTool(s),
+	algorithm_verify: s => new AlgorithmVerifyTool(s),
 	capability_inspect: s => new CapabilityInspectTool(s),
 	evm_inspect: s => new EvmInspectTool(s),
 	binary_diff: s => new BinaryDiffTool(s),

@@ -47,6 +47,8 @@ export const BUILTIN_TOOL_NAMES = [
 	"binary_metadata_inspect",
 	"elf_inspect",
 	"format_inspect",
+	"protocol_sequence",
+	"algorithm_verify",
 	"capability_inspect",
 	"evm_inspect",
 	"binary_diff",

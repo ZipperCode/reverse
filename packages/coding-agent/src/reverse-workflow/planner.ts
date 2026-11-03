@@ -638,5 +638,25 @@ export function generateDeterministicPlan(
 				"For a custom binary layout, write an explicit .ksy hypothesis, bind its imports and positive/negative samples in reverse_workspace begin, compile to a verified manifest, and validate exact fields and stream-relative offsets. Parsing success alone does not prove the protocol.",
 		});
 	}
+	if (effectiveFormat === "PCAP" || trafficGoal) {
+		recommendations.push({
+			tool: "protocol_sequence",
+			actions: ["reassemble", "build", "validate"],
+			guidance:
+				"Use ordered application-stream chunks with an explicit length-prefix hypothesis to reassemble and build messages, then validate observed message types against an explicit session transition model. Resolve TCP retransmission and ordering before supplying chunks. This validates a hypothesis; it does not infer a state machine or decrypt traffic.",
+		});
+	}
+	const recoveryGoal =
+		/(?:\b(?:algorithm|crypto|signature|signing|reimplement(?:ation)?|recovery|oracle|differential)\b|算法|签名|还原|复现|差分)/i.test(
+			options.goal ?? "",
+		);
+	if (recoveryGoal) {
+		recommendations.push({
+			tool: "algorithm_verify",
+			actions: ["verify"],
+			guidance:
+				"Capture complete stage inputs, outputs and algorithm parameters first; record time, randomness and session state explicitly. Run an authorized local oracle and candidate with identical input bytes using separate exploration and holdout vectors, then inspect the first byte divergence. Local executables require exec approval and are not sandboxed. Finite agreement is not formal equivalence or proof that the candidate is independent of the original.",
+		});
+	}
 	return { format: effectiveFormat, steps, recommendations };
 }

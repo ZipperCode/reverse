@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { createTools, type ToolSession } from "@reverse/coding-agent/tools";
+import { resolveToolTier } from "@reverse/coding-agent/tools/approval";
 
 Bun.env.PI_PYTHON_SKIP_CHECK = "1";
 
@@ -66,8 +67,57 @@ describe("createTools", () => {
 		expect(names).toContain("web_search");
 		expect(names).toContain("format_inspect");
 		expect(names).toContain("capability_inspect");
+		expect(names).toContain("protocol_sequence");
+		expect(names).toContain("algorithm_verify");
 		expect(names).not.toContain("fetch");
 		expect(names).not.toContain("vim");
+	});
+
+	it("mounts recovery tools with distinct read and execution approval tiers", async () => {
+		const session = createTestSession();
+		const tools = await createTools(session);
+		expect(tools.some(tool => tool.name === "algorithm_verify" || tool.name === "protocol_sequence")).toBe(false);
+		const read = tools.find(tool => tool.name === "read")!;
+		const listing = await read.execute("recovery-devices", { path: "xd://" });
+		const text = listing.content
+			.filter(item => item.type === "text")
+			.map(item => item.text)
+			.join("\n");
+		expect(text).toContain("xd://algorithm_verify");
+		expect(text).toContain("xd://protocol_sequence");
+		const write = tools.find(tool => tool.name === "write")!;
+		const result = await write.execute("protocol-device", {
+			path: "xd://protocol_sequence",
+			content: JSON.stringify({
+				action: "validate",
+				model: {
+					initial_state: "new",
+					transitions: [{ from: "new", message_type: "hello", to: "ready" }],
+					terminal_states: ["ready"],
+				},
+				messages: [{ message_type: "hello" }],
+			}),
+		});
+		expect(result.isError).toBeUndefined();
+		const payload = JSON.parse(result.content.find(item => item.type === "text")!.text);
+		expect(payload.validation.valid).toBe(true);
+		expect(payload.validation.sessions[0].final_state).toBe("ready");
+		const direct = await createTools(
+			createTestSession({ settings: createSettingsWithOverrides({ "tools.xdev": false }) }),
+			["algorithm_verify", "protocol_sequence"],
+		);
+		expect(
+			resolveToolTier(
+				direct.find(tool => tool.name === "algorithm_verify")!,
+				{ action: "verify" },
+			),
+		).toBe("exec");
+		expect(
+			resolveToolTier(
+				direct.find(tool => tool.name === "protocol_sequence")!,
+				{ action: "validate" },
+			),
+		).toBe("read");
 	});
 
 	it("normalizes legacy explicit tool names", async () => {

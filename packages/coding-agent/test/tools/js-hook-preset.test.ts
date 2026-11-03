@@ -1,9 +1,11 @@
 import { describe, expect, it } from "bun:test";
+import type { webcrypto } from "node:crypto";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import {
+	type BrowserReverseEvent,
 	createTools,
 	JsHookPresetTool,
 	type ToolSession,
@@ -566,6 +568,541 @@ describe("js_hook_preset action: capture and clear", () => {
 				expect(script).toContain("_reaRecord");
 			}
 		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+});
+
+function createInstrumentedCryptoEnv(script: string) {
+	const realSubtle = globalThis.crypto.subtle;
+	let exportKeyCalls = 0;
+	const subtleFacade = {
+		encrypt: realSubtle.encrypt.bind(realSubtle),
+		decrypt: realSubtle.decrypt.bind(realSubtle),
+		digest: realSubtle.digest.bind(realSubtle),
+		importKey: realSubtle.importKey.bind(realSubtle),
+		exportKey: ((format: Parameters<SubtleCrypto["exportKey"]>[0], key: CryptoKey) => {
+			exportKeyCalls += 1;
+			return realSubtle.exportKey(format as "raw", key);
+		}) as SubtleCrypto["exportKey"],
+		sign: realSubtle.sign.bind(realSubtle),
+		verify: realSubtle.verify.bind(realSubtle),
+	} as unknown as SubtleCrypto; // Partial SubtleCrypto facade forwarding the 7 hooked operations
+	const cryptoFacade = {
+		subtle: subtleFacade,
+		getRandomValues: <T extends ArrayBufferView | null>(array: T): T => globalThis.crypto.getRandomValues(array),
+	};
+	const consoleLogs: string[] = [];
+	const mockConsole = {
+		log: (...args: unknown[]) => consoleLogs.push(args.map(String).join(" ")),
+		warn: (...args: unknown[]) => consoleLogs.push(args.map(String).join(" ")),
+		error: (...args: unknown[]) => consoleLogs.push(args.map(String).join(" ")),
+		groupCollapsed: (...args: unknown[]) => consoleLogs.push(args.map(String).join(" ")),
+		groupEnd: () => undefined,
+	};
+	const win: { __rea_events__: BrowserReverseEvent[]; crypto: typeof cryptoFacade; [key: string]: unknown } = {
+		__rea_events__: [],
+		crypto: cryptoFacade,
+	};
+	const installer = new Function("window", "crypto", "console", script);
+	installer(win, cryptoFacade, mockConsole);
+	return {
+		win,
+		crypto: cryptoFacade,
+		subtle: cryptoFacade.subtle,
+		events: win.__rea_events__,
+		consoleLogs,
+		getExportKeyCalls: () => exportKeyCalls,
+	};
+}
+
+describe("js_hook_preset behavioral execution: Web Crypto & custom hooks", () => {
+	it("captures digest(algorithm, data) argument position and correlates result", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "js-hook-exec-digest-"));
+		try {
+			const session = createTestSession(tempDir);
+			const tool = new JsHookPresetTool(session);
+			const gen = await tool.execute("gen_digest", { action: "generate", preset: "crypto" });
+			const env = createInstrumentedCryptoEnv(gen.details?.script ?? "");
+
+			const input = new TextEncoder().encode("abc");
+			const digestBuf = await env.subtle.digest("SHA-256", input);
+			const digestHex = Buffer.from(digestBuf).toString("hex");
+			expect(digestHex).toBe("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+
+			expect(env.events).toHaveLength(2);
+			const [callEv, resEv] = env.events;
+			expect(callEv.type).toBe("crypto_call");
+			expect(callEv.method).toBe("digest");
+			expect(callEv.algorithm).toBe("SHA-256");
+			expect(callEv.algorithmParameters).toEqual({ name: "SHA-256" });
+			expect(callEv.keyPreview).toBeNull();
+			expect(callEv.dataHex).toBe("616263");
+			expect(callEv.dataByteLength).toBe(3);
+			expect(callEv.dataTruncated).toBe(false);
+			expect(callEv.complete).toBe(true);
+
+			expect(resEv.type).toBe("crypto_result");
+			expect(resEv.id).toBe(callEv.id);
+			expect(resEv.method).toBe("digest");
+			expect(resEv.resultHex).toBe("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+			expect(resEv.resultByteLength).toBe(32);
+			expect(resEv.resultTruncated).toBe(false);
+			expect(resEv.complete).toBe(true);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("captures importKey, sign, and verify(true/false) without auto-exporting keys or leaking secret bytes in previews", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "js-hook-exec-verify-"));
+		try {
+			const session = createTestSession(tempDir);
+			const tool = new JsHookPresetTool(session);
+			const gen = await tool.execute("gen_verify", { action: "generate", preset: "crypto" });
+			const env = createInstrumentedCryptoEnv(gen.details?.script ?? "");
+
+			const secretHex = "deadbeefcafebabe00112233445566778899aabbccddeeff0011223344556677";
+			const keyBytes = Uint8Array.from(Buffer.from(secretHex, "hex"));
+			const hmacKey = await env.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, [
+				"sign",
+				"verify",
+			]);
+
+			// Non-extractable key must never be auto-exported
+			expect(env.getExportKeyCalls()).toBe(0);
+
+			const importCall = env.events[0];
+			const importRes = env.events[1];
+			expect(importCall.type).toBe("crypto_call");
+			expect(importCall.method).toBe("importKey");
+			expect(importCall.format).toBe("raw");
+			expect(importCall.algorithm).toBe("HMAC");
+			expect(importCall.algorithmParameters).toMatchObject({ name: "HMAC", hash: "SHA-256" });
+			expect(importCall.extractable).toBe(false);
+			expect(importCall.keyUsages).toEqual(["sign", "verify"]);
+			expect(importCall.keyPreview).not.toContain(secretHex);
+			expect(importCall.dataPreview).toContain("redacted keyData");
+			expect(env.consoleLogs.join("\n")).not.toContain(secretHex);
+
+			expect(importRes.type).toBe("crypto_result");
+			expect(importRes.id).toBe(importCall.id);
+			expect(importRes.result).toMatchObject({
+				type: "secret",
+				extractable: false,
+				usages: ["sign", "verify"],
+			});
+
+			const message = new TextEncoder().encode("protocol=v2&ts=1700000000");
+			const messageHex = Buffer.from(message).toString("hex");
+			const sigBuf = await env.subtle.sign("HMAC", hmacKey, message);
+			const sigHex = Buffer.from(sigBuf).toString("hex");
+
+			const validOk = await env.subtle.verify("HMAC", hmacKey, sigBuf, message);
+			expect(validOk).toBe(true);
+
+			const tamperedSig = new Uint8Array(sigBuf.slice(0));
+			tamperedSig[0] ^= 0xff;
+			const tamperedHex = Buffer.from(tamperedSig).toString("hex");
+			const invalidOk = await env.subtle.verify("HMAC", hmacKey, tamperedSig, message);
+			expect(invalidOk).toBe(false);
+			expect(env.getExportKeyCalls()).toBe(0);
+
+			const verifyTrueCall = env.events[4];
+			const verifyTrueRes = env.events[5];
+			expect(verifyTrueCall.method).toBe("verify");
+			expect(verifyTrueCall.signatureHex).toBe(sigHex);
+			expect(verifyTrueCall.signatureByteLength).toBe(32);
+			expect(verifyTrueCall.dataHex).toBe(messageHex);
+			expect(verifyTrueCall.dataByteLength).toBe(message.byteLength);
+			expect(verifyTrueCall.complete).toBe(true);
+			expect(verifyTrueRes.id).toBe(verifyTrueCall.id);
+			expect(verifyTrueRes.result).toBe(true);
+			expect(verifyTrueRes.verified).toBe(true);
+			expect(verifyTrueRes.resultHex).toBe("true");
+			expect(verifyTrueRes.complete).toBe(true);
+
+			const verifyFalseCall = env.events[6];
+			const verifyFalseRes = env.events[7];
+			expect(verifyFalseCall.method).toBe("verify");
+			expect(verifyFalseCall.signatureHex).toBe(tamperedHex);
+			expect(verifyFalseCall.dataHex).toBe(messageHex);
+			expect(verifyFalseRes.id).toBe(verifyFalseCall.id);
+			expect(verifyFalseRes.result).toBe(false);
+			expect(verifyFalseRes.verified).toBe(false);
+			expect(verifyFalseRes.resultHex).toBe("false");
+			expect(verifyFalseRes.complete).toBe(true);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("retains full algorithm parameters (IV, AAD, tagLength) and slices TypedArray/DataView subviews accurately", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "js-hook-exec-subview-"));
+		try {
+			const session = createTestSession(tempDir);
+			const tool = new JsHookPresetTool(session);
+			const gen = await tool.execute("gen_subview", { action: "generate", preset: "crypto" });
+			const env = createInstrumentedCryptoEnv(gen.details?.script ?? "");
+
+			const rawKey = new Uint8Array(16);
+			for (let i = 0; i < 16; i++) rawKey[i] = i + 1;
+			const aesKey = await env.subtle.importKey("raw", rawKey, "AES-GCM", false, ["encrypt", "decrypt"]);
+			env.events.length = 0;
+
+			// Shared backing buffer filled with 0xff sentinel bytes to verify subview offsets/lengths
+			const arena = new Uint8Array(64).fill(0xff);
+			const ivBytes = Uint8Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+			const aadBytes = Uint8Array.from([0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8]);
+			const ptBytes = new TextEncoder().encode("SubviewMsg");
+			arena.set(ivBytes, 4);
+			arena.set(aadBytes, 20);
+			arena.set(ptBytes, 36);
+
+			const ivSubview = new Uint8Array(arena.buffer, 4, 12);
+			const aadDataView = new DataView(arena.buffer, 20, 8);
+			const ptSubview = new Uint8Array(arena.buffer, 36, ptBytes.byteLength);
+
+			const ciphertext = await env.subtle.encrypt(
+				{ name: "AES-GCM", iv: ivSubview, additionalData: aadDataView, tagLength: 128 },
+				aesKey,
+				ptSubview,
+			);
+			const decrypted = await env.subtle.decrypt(
+				{ name: "AES-GCM", iv: ivSubview, additionalData: aadDataView, tagLength: 128 },
+				aesKey,
+				ciphertext,
+			);
+			expect(new TextDecoder().decode(decrypted)).toBe("SubviewMsg");
+
+			const encCall = env.events[0];
+			const encRes = env.events[1];
+			const decRes = env.events[3];
+			expect(encCall.algorithm).toBe("AES-GCM");
+			expect(encCall.algorithmParameters).toMatchObject({
+				name: "AES-GCM",
+				iv: "0102030405060708090a0b0c",
+				ivHex: "0102030405060708090a0b0c",
+				ivByteLength: 12,
+				ivTruncated: false,
+				additionalData: "a1a2a3a4a5a6a7a8",
+				additionalDataHex: "a1a2a3a4a5a6a7a8",
+				additionalDataByteLength: 8,
+				additionalDataTruncated: false,
+				tagLength: 128,
+			});
+			expect(encCall.dataHex).toBe(Buffer.from(ptBytes).toString("hex"));
+			expect(encCall.dataByteLength).toBe(10);
+			expect(encCall.complete).toBe(true);
+			expect(encRes.resultByteLength).toBe(10 + 16);
+			expect(decRes.resultHex).toBe(Buffer.from(ptBytes).toString("hex"));
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("separates preview truncation from bounded complete raw bytes and marks truncated or redacted captures incomplete", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "js-hook-exec-trunc-"));
+		try {
+			const session = createTestSession(tempDir);
+			const tool = new JsHookPresetTool(session);
+			// max_payload_length = 64 -> raw limit = 32 bytes (64 hex chars), preview limit = 8 bytes (16 hex chars)
+			const gen = await tool.execute("gen_trunc", {
+				action: "generate",
+				preset: "crypto",
+				max_payload_length: 64,
+			});
+			const env = createInstrumentedCryptoEnv(gen.details?.script ?? "");
+
+			// 1) 20-byte buffer: preview is truncated (20 > 8), but raw dataHex is complete (20 <= 32)
+			const mediumPayload = new Uint8Array(20);
+			for (let i = 0; i < mediumPayload.length; i++) mediumPayload[i] = i + 1;
+			await env.subtle.digest("SHA-256", mediumPayload);
+
+			const medCall = env.events[0];
+			const medRes = env.events[1];
+			expect(medCall.dataPreviewTruncated).toBe(true);
+			expect(medCall.dataPreview).toContain("...[+12 bytes]");
+			expect(medCall.dataHex).toBe(Buffer.from(mediumPayload).toString("hex"));
+			expect(medCall.dataByteLength).toBe(20);
+			expect(medCall.dataCapturedByteLength).toBe(20);
+			expect(medCall.dataTruncated).toBe(false);
+			expect(medCall.truncated).toBe(false);
+			expect(medCall.complete).toBe(true);
+			expect(medRes.resultByteLength).toBe(32);
+			expect(medRes.resultTruncated).toBe(false);
+			expect(medRes.complete).toBe(true);
+
+			// 2) 48-byte buffer: exceeds 32-byte raw capture limit -> bounded pure hex, marked incomplete
+			env.events.length = 0;
+			const largePayload = new Uint8Array(48);
+			for (let i = 0; i < largePayload.length; i++) largePayload[i] = (i * 3) & 0xff;
+			await env.subtle.digest("SHA-256", largePayload);
+
+			const lgCall = env.events[0];
+			const lgRes = env.events[1];
+			expect(lgCall.dataHex).toBe(Buffer.from(largePayload.subarray(0, 32)).toString("hex"));
+			expect(lgCall.dataHex).not.toContain("...[+");
+			expect(lgCall.dataByteLength).toBe(48);
+			expect(lgCall.dataCapturedByteLength).toBe(32);
+			expect(lgCall.dataTruncated).toBe(true);
+			expect(lgCall.truncated).toBe(true);
+			expect(lgCall.complete).toBe(false);
+			// Result event inherits incomplete call status so partial input never becomes an oracle vector
+			expect(lgRes.id).toBe(lgCall.id);
+			expect(lgRes.truncated).toBe(true);
+			expect(lgRes.complete).toBe(false);
+
+			// 3) JWK importKey & exportKey with secret field k: redacts k and marks omission/incomplete
+			env.events.length = 0;
+			const jwkKey = await env.subtle.importKey(
+				"jwk",
+				{
+					kty: "oct",
+					k: "c2VjcmV0X2tleV9tYXRlcmlhbF8xMjM0NTY3ODkwMTI",
+					alg: "HS256",
+					ext: true,
+					key_ops: ["sign", "verify"],
+				},
+				{ name: "HMAC", hash: "SHA-256" },
+				true,
+				["sign", "verify"],
+			);
+			const exportedJwk = (await env.subtle.exportKey("jwk", jwkKey)) as unknown as Record<string, unknown>;
+			expect(exportedJwk.k).toBe("c2VjcmV0X2tleV9tYXRlcmlhbF8xMjM0NTY3ODkwMTI");
+
+			const jwkImportCall = env.events[0];
+			const jwkExportRes = env.events[3];
+			expect(jwkImportCall.jwk?.k).toBe("[REDACTED]");
+			expect(jwkImportCall.omittedFields).toContain("k");
+			expect(jwkImportCall.truncated).toBe(true);
+			expect(jwkImportCall.complete).toBe(false);
+
+			expect(jwkExportRes.jwk?.k).toBe("[REDACTED]");
+			expect(jwkExportRes.omittedFields).toContain("k");
+			expect(jwkExportRes.truncated).toBe(true);
+			expect(jwkExportRes.complete).toBe(false);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("records correlated crypto_error events and rethrows original exceptions on failure", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "js-hook-exec-err-"));
+		try {
+			const session = createTestSession(tempDir);
+			const tool = new JsHookPresetTool(session);
+			const gen = await tool.execute("gen_err", { action: "generate", preset: "crypto" });
+			const env = createInstrumentedCryptoEnv(gen.details?.script ?? "");
+
+			const rawKey = new Uint8Array(16).fill(7);
+			const nonExtractableKey = await env.subtle.importKey("raw", rawKey, "AES-GCM", false, ["encrypt", "decrypt"]);
+			env.events.length = 0;
+
+			// 1) Decrypting invalid ciphertext/authentication tag must reject and log correlated crypto_error
+			const iv = new Uint8Array(12).fill(1);
+			const bogusCiphertext = new Uint8Array(24).fill(0x42);
+			await expect(
+				env.subtle.decrypt({ name: "AES-GCM", iv }, nonExtractableKey, bogusCiphertext),
+			).rejects.toThrow();
+
+			expect(env.events).toHaveLength(2);
+			const [decCall, decErr] = env.events;
+			expect(decCall.type).toBe("crypto_call");
+			expect(decCall.method).toBe("decrypt");
+			expect(decErr.type).toBe("crypto_error");
+			expect(decErr.id).toBe(decCall.id);
+			expect(decErr.method).toBe("decrypt");
+			expect(decErr.algorithm).toBe("AES-GCM");
+			expect(decErr.complete).toBe(false);
+			expect(typeof decErr.error).toBe("string");
+
+			// 2) Exporting a non-extractable key must reject and log correlated crypto_error
+			env.events.length = 0;
+			await expect(env.subtle.exportKey("raw", nonExtractableKey)).rejects.toThrow();
+			expect(env.events).toHaveLength(2);
+			expect(env.events[0].type).toBe("crypto_call");
+			expect(env.events[1].type).toBe("crypto_error");
+			expect(env.events[1].id).toBe(env.events[0].id);
+			expect(env.events[1].method).toBe("exportKey");
+			expect(env.events[1].complete).toBe(false);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("executes custom hook preset on allowlisted signing function with subviews and correlated results", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "js-hook-exec-custom-"));
+		try {
+			const session = createTestSession(tempDir);
+			const tool = new JsHookPresetTool(session);
+			const gen = await tool.execute("gen_custom_exec", {
+				action: "generate",
+				preset: "custom",
+				target: "window.customCrypto.signFrame",
+			});
+
+			interface CustomHookTestWindow {
+				__rea_events__: BrowserReverseEvent[];
+				customCrypto: {
+					signFrame: (payloadView: Uint8Array, nonce: string) => string;
+				};
+				window?: CustomHookTestWindow;
+			}
+			const win: CustomHookTestWindow = {
+				__rea_events__: [],
+				customCrypto: {
+					signFrame(payloadView: Uint8Array, nonce: string) {
+						return `sig:${Buffer.from(payloadView).toString("hex")}:${nonce}`;
+					},
+				},
+			};
+			win.window = win;
+			const mockConsole = {
+				log: () => undefined,
+				warn: () => undefined,
+				error: () => undefined,
+				groupCollapsed: () => undefined,
+				groupEnd: () => undefined,
+			};
+			const installer = new Function("window", "console", gen.details?.script ?? "");
+			installer(win, mockConsole);
+
+			const backing = new Uint8Array([0xff, 0x10, 0x20, 0x30, 0xff]);
+			const sub = backing.subarray(1, 4);
+			const out = win.customCrypto.signFrame(sub, "n1");
+			expect(out).toBe("sig:102030:n1");
+
+			expect(win.__rea_events__).toHaveLength(2);
+			expect(win.__rea_events__[0].type).toBe("custom_call");
+			expect(win.__rea_events__[0].args).toEqual(["102030", "n1"]);
+			expect(win.__rea_events__[1].type).toBe("custom_result");
+			expect(win.__rea_events__[1].id).toBe(win.__rea_events__[0].id);
+			expect(win.__rea_events__[1].result).toBe("sig:102030:n1");
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("bounds excessive algorithm/JWK keys and long array items, propagating incomplete status", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "js-hook-exec-bounds-"));
+		try {
+			const session = createTestSession(tempDir);
+			const tool = new JsHookPresetTool(session);
+			const gen = await tool.execute("gen_bounds", {
+				action: "generate",
+				preset: "crypto",
+				max_payload_length: 64,
+			});
+			const env = createInstrumentedCryptoEnv(gen.details?.script ?? "");
+
+			// 1) Algorithm object with >16 extra keys and an array containing an oversized string item
+			const bloatedAlgo: Record<string, unknown> = {
+				name: "SHA-256",
+				tags: ["short", "x".repeat(200)],
+			};
+			for (let i = 0; i < 30; i++) {
+				bloatedAlgo[`extra_${i}`] = i;
+			}
+			await env.subtle.digest(
+				bloatedAlgo as unknown as Parameters<SubtleCrypto["digest"]>[0],
+				new Uint8Array([1, 2, 3]),
+			);
+
+			const algoCall = env.events[0];
+			const algoRes = env.events[1];
+			expect(algoCall.algorithm).toBe("SHA-256");
+			expect(algoCall.algorithmTruncated).toBe(true);
+			expect(algoCall.omittedFields?.length).toBeGreaterThan(0);
+			expect(algoCall.omittedFields?.length).toBeLessThanOrEqual(9);
+			expect(algoCall.truncated).toBe(true);
+			expect(algoCall.complete).toBe(false);
+			expect(algoRes.truncated).toBe(true);
+			expect(algoRes.complete).toBe(false);
+
+			// 2) Public JWK with >24 extra keys and a long array item in custom_tags (no secret fields, yet still incomplete due to bounds)
+			env.events.length = 0;
+			const keyPair = await globalThis.crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
+				"sign",
+				"verify",
+			]);
+			const pubJwk = (await globalThis.crypto.subtle.exportKey("jwk", keyPair.publicKey)) as unknown as Record<
+				string,
+				unknown
+			>;
+			const bloatedJwk: webcrypto.JsonWebKey & Record<string, unknown> = {
+				...pubJwk,
+				custom_tags: ["M".repeat(200)],
+			};
+			for (let i = 0; i < 35; i++) {
+				bloatedJwk[`meta_${i}`] = `v${i}`;
+			}
+			await env.subtle.importKey("jwk", bloatedJwk, { name: "ECDSA", namedCurve: "P-256" }, true, ["verify"]);
+
+			const jwkCall = env.events[0];
+			const jwkRes = env.events[1];
+			expect(jwkCall.truncatedFields).toContain("custom_tags");
+			expect(jwkCall.omittedFields?.length).toBeLessThanOrEqual(9);
+			expect(jwkCall.truncated).toBe(true);
+			expect(jwkCall.complete).toBe(false);
+			expect(jwkRes.truncated).toBe(true);
+			expect(jwkRes.complete).toBe(false);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("generates distinct monotonic call IDs without calling or perturbing Math.random", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "js-hook-exec-rng-"));
+		const origRandom = Math.random;
+		let randomCalls = 0;
+		try {
+			const session = createTestSession(tempDir);
+			const tool = new JsHookPresetTool(session);
+			const cryptoGen = await tool.execute("gen_crypto_rng", { action: "generate", preset: "crypto" });
+			const customGen = await tool.execute("gen_custom_rng", {
+				action: "generate",
+				preset: "custom",
+				target: "window.customSigner.sign",
+			});
+
+			Math.random = () => {
+				randomCalls += 1;
+				return 0.424242;
+			};
+
+			const env = createInstrumentedCryptoEnv(cryptoGen.details?.script ?? "");
+			env.win.window = env.win;
+			env.win.customSigner = {
+				sign: (msg: string) => `signed:${msg}`,
+			};
+			const customInstaller = new Function("window", "console", customGen.details?.script ?? "");
+			customInstaller(env.win, {
+				log: () => undefined,
+				warn: () => undefined,
+				error: () => undefined,
+				groupCollapsed: () => undefined,
+				groupEnd: () => undefined,
+			});
+
+			await env.subtle.digest("SHA-256", new Uint8Array([1]));
+			await env.subtle.digest("SHA-256", new Uint8Array([2]));
+			env.crypto.getRandomValues(new Uint8Array(4));
+			env.crypto.getRandomValues(new Uint8Array(4));
+			const customSigner = env.win.customSigner as { sign: (msg: string) => string };
+			customSigner.sign("a");
+			customSigner.sign("b");
+
+			expect(randomCalls).toBe(0);
+
+			const callEvents = env.events.filter(
+				e => e.type === "crypto_call" || e.type === "crypto_random" || e.type === "custom_call",
+			);
+			expect(callEvents).toHaveLength(6);
+			const ids = callEvents.map(e => e.id);
+			expect(new Set(ids).size).toBe(6);
+		} finally {
+			Math.random = origRandom;
 			await removeWithRetries(tempDir);
 		}
 	});
