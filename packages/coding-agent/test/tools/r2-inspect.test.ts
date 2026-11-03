@@ -551,6 +551,21 @@ describe("r2_inspect runner outcomes", () => {
 			await removeWithRetries(tempDir);
 		}
 	});
+	it("recovers complete JSON array items when output is truncated mid-array", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "r2-trunc-array-"));
+		try {
+			const target = await writeTarget(tempDir);
+			const truncatedJson = '[{"name":"main","offset":4198400,"size":32},{"name":"incomplete"';
+			const { runner } = fakeRunner(() => truncatedJson, { truncated: true, killedOnOverflow: true });
+			const tool = new R2InspectTool(createTestSession(tempDir), { which: foundWhich, runner });
+			const result = await tool.execute("call", { action: "functions", path: target, max_bytes: 64 });
+			expect(detailsOf(result).status).toBe("ok");
+			expect(detailsOf(result).truncated).toBe(true);
+			expect(detailsOf(result).functions?.map(fn => fn.name)).toEqual(["main"]);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
 
 	it("reports a non-zero exit with stderr", async () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "r2-exit-"));

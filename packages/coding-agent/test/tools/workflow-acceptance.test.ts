@@ -1150,4 +1150,88 @@ describe("Workflow Acceptance Criteria and Deployment Boundaries (#12, #13, Clos
 			await fs.rm(tmpDir, { recursive: true, force: true });
 		}
 	});
+	it("defaults generated final-step acceptance to static_candidate so static targets can complete without dynamic waivers", async () => {
+		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "rev-test-static-default-"));
+		let store: ReverseWorkflowStore | undefined;
+		let evidenceStore: EvidenceStore | undefined;
+		try {
+			const targetFile = path.join(tmpDir, "data.db");
+			await fs.writeFile(targetFile, "SQLite format 3\0");
+			store = new ReverseWorkflowStore({ repositoryRoot: tmpDir });
+			evidenceStore = new EvidenceStore({ repositoryRoot: tmpDir });
+			const wf = await store.create({
+				target: targetFile,
+				format: "SQLite",
+				goal: "Inspect schema",
+			});
+			const lastStep = wf.steps[wf.steps.length - 1]!;
+			const criteria = getWorkflowAcceptanceCriteria(wf, lastStep.id);
+			expect(criteria[0]?.min_assurance).toBe("static_candidate");
+
+			const fact = await evidenceStore.addFact({
+				kind: "fact",
+				target: targetFile,
+				sourceTool: "sqlite_inspect",
+				locator: "schema:users",
+				content: "CREATE TABLE users(id INTEGER PRIMARY KEY)",
+				subject: criteria[0]!.subject,
+				assurance: "static_candidate",
+			});
+			const tool = new ReverseWorkflowTool(createSession(tmpDir));
+			await tool.execute("rec-final", {
+				action: "record",
+				workflow_id: wf.id,
+				step_id: lastStep.id,
+				status: "completed",
+				evidence_ids: [fact.id],
+			});
+			const updated = await store.get(wf.id);
+			expect(getWorkflowAcceptanceCriteria(updated!, lastStep.id)[0]?.status).toBe("satisfied");
+		} finally {
+			if (store) await fs.rm(store.projectDirectory, { recursive: true, force: true }).catch(() => undefined);
+			if (evidenceStore)
+				await fs.rm(evidenceStore.projectDirectory, { recursive: true, force: true }).catch(() => undefined);
+			await fs.rm(tmpDir, { recursive: true, force: true });
+		}
+	});
+
+	it("serializes concurrent record actions without losing earlier step updates", async () => {
+		const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "rev-test-concurrent-record-"));
+		let store: ReverseWorkflowStore | undefined;
+		try {
+			const targetFile = path.join(tmpDir, "bundle.js");
+			await fs.writeFile(targetFile, "console.log(1);");
+			store = new ReverseWorkflowStore({ repositoryRoot: tmpDir });
+			const wf = await store.create({
+				target: targetFile,
+				format: "JS",
+				goal: "Inspect bundle",
+			});
+			const tool = new ReverseWorkflowTool(createSession(tmpDir));
+			await Promise.all([
+				tool.execute("rec-1", {
+					action: "record",
+					workflow_id: wf.id,
+					step_id: wf.steps[0]!.id,
+					status: "completed",
+					outputs: "step 1 output",
+				}),
+				tool.execute("rec-2", {
+					action: "record",
+					workflow_id: wf.id,
+					step_id: wf.steps[1]!.id,
+					status: "completed",
+					outputs: "step 2 output",
+				}),
+			]);
+			const reloaded = await store.get(wf.id);
+			expect(reloaded?.steps[0]?.status).toBe("completed");
+			expect(reloaded?.steps[0]?.outputs).toBe("step 1 output");
+			expect(reloaded?.steps[1]?.status).toBe("completed");
+			expect(reloaded?.steps[1]?.outputs).toBe("step 2 output");
+		} finally {
+			if (store) await fs.rm(store.projectDirectory, { recursive: true, force: true }).catch(() => undefined);
+			await fs.rm(tmpDir, { recursive: true, force: true });
+		}
+	});
 });

@@ -805,223 +805,222 @@ export class ReverseWorkflowTool implements AgentTool<typeof reverseWorkflowSche
 					);
 				}
 
-				const workflow = await store.get(workflowId);
-				if (!workflow) throw new ToolError(`Workflow '${workflowId}' not found.`);
+				const { workflow, step } = await store.update(workflowId, async (workflow, persist) => {
+					const step = workflow.steps.find(s => s.id === stepId);
+					if (!step) throw new ToolError(`Step '${stepId}' not found in workflow '${workflowId}'.`);
 
-				const step = workflow.steps.find(s => s.id === stepId);
-				if (!step) throw new ToolError(`Step '${stepId}' not found in workflow '${workflowId}'.`);
-
-				// Validate and link evidence IDs if provided
-				if (Array.isArray(params.evidence_ids) && params.evidence_ids.length > 0) {
-					for (const evId of params.evidence_ids) {
-						if (!validateEvidenceIdFormat(evId)) {
-							throw new ToolError(
-								`Invalid evidence ID format: '${evId}'. Must be a valid evidence ledger ID starting with ev_fact_, ev_hyp_, ev_conc_, or ev_unk_.`,
-							);
+					// Validate and link evidence IDs if provided
+					if (Array.isArray(params.evidence_ids) && params.evidence_ids.length > 0) {
+						for (const evId of params.evidence_ids) {
+							if (!validateEvidenceIdFormat(evId)) {
+								throw new ToolError(
+									`Invalid evidence ID format: '${evId}'. Must be a valid evidence ledger ID starting with ev_fact_, ev_hyp_, ev_conc_, or ev_unk_.`,
+								);
+							}
+							const existingRecord = await evidenceStore.getRecord(evId);
+							if (!existingRecord) {
+								throw new ToolError(
+									`Evidence ID '${evId}' not found in the project evidence ledger. You must first record the fact or hypothesis using the 'evidence' tool (action: 'add') before linking it to workflow steps.`,
+								);
+							}
 						}
-						const existingRecord = await evidenceStore.getRecord(evId);
-						if (!existingRecord) {
-							throw new ToolError(
-								`Evidence ID '${evId}' not found in the project evidence ledger. You must first record the fact or hypothesis using the 'evidence' tool (action: 'add') before linking it to workflow steps.`,
-							);
-						}
-					}
-					step.evidence_ids = Array.from(new Set([...(step.evidence_ids ?? []), ...params.evidence_ids]));
-				}
-
-				if (Array.isArray(params.knowledge_refs) && params.knowledge_refs.length > 0) {
-					for (const knId of params.knowledge_refs) {
-						if (!validateKnowledgeIdFormat(knId)) {
-							throw new ToolError(
-								`Invalid knowledge ID format: '${knId}'. Must be a valid reverse knowledge ID starting with kn_rev_.`,
-							);
-						}
-						const existingRecord = await knowledgeStore.get(knId);
-						if (!existingRecord) {
-							throw new ToolError(`Knowledge ID '${knId}' not found in the project reverse knowledge store.`);
-						}
-					}
-					step.knowledge_refs = Array.from(new Set([...(step.knowledge_refs ?? []), ...params.knowledge_refs]));
-					workflow.knowledge_refs = Array.from(
-						new Set([...(workflow.knowledge_refs ?? []), ...params.knowledge_refs]),
-					);
-				}
-				if (Array.isArray(params.artifact_refs)) {
-					step.artifact_refs = Array.from(new Set([...(step.artifact_refs ?? []), ...params.artifact_refs]));
-				}
-
-				if (params.runtime_session_id) {
-					step.runtime_session_id = params.runtime_session_id;
-					step.runtime_session_ids = Array.from(
-						new Set([...(step.runtime_session_ids ?? []), params.runtime_session_id]),
-					);
-					workflow.runtime_session_ids = Array.from(
-						new Set([...(workflow.runtime_session_ids ?? []), params.runtime_session_id]),
-					);
-				}
-				if (Array.isArray(params.runtime_session_ids) && params.runtime_session_ids.length > 0) {
-					step.runtime_session_ids = Array.from(
-						new Set([...(step.runtime_session_ids ?? []), ...params.runtime_session_ids]),
-					);
-					workflow.runtime_session_ids = Array.from(
-						new Set([...(workflow.runtime_session_ids ?? []), ...params.runtime_session_ids]),
-					);
-					if (!step.runtime_session_id) {
-						step.runtime_session_id = params.runtime_session_ids[0];
-					}
-				}
-				if (params.outputs !== undefined) {
-					step.outputs = params.outputs;
-				}
-
-				const errorMsg = params.error ?? params.failure_reason;
-				if (errorMsg) {
-					step.error = errorMsg;
-					step.recovery_metadata = {
-						...step.recovery_metadata,
-						failure_reason: errorMsg,
-					};
-				}
-				if (params.installed_tool) {
-					const verification = verifyInstalledTool(params.installed_tool, { cwd: repoRoot });
-					const resumeStrategy = params.strategy ?? params.resume_strategy ?? "resume_original";
-					const resumeMeta: StepResumeMetadata = {
-						capability_id: params.capability_id,
-						installed_tool: params.installed_tool,
-						setup_command: params.setup_command ?? verification.setup_command,
-						verified: verification.verified,
-						strategy: resumeStrategy,
-						resumed_at: params.resumed_at ?? new Date().toISOString(),
-					};
-					step.recovery_metadata = {
-						...step.recovery_metadata,
-						resume: resumeMeta,
-					};
-				}
-				if (status === "completed") {
-					await cascadeEvidenceRefutation(workflow, evidenceStore).catch(() => null);
-
-					// 1. Evidence validation via evaluateEvidenceSupport
-					const evidenceRecords: EvidenceRecord[] = [];
-					if (step.evidence_ids && step.evidence_ids.length > 0) {
-						const evalResult = await evaluateEvidenceSupport(evidenceStore, step.evidence_ids);
-						if (evalResult.refutedIds.length > 0) {
-							throw new ToolError(
-								`Cannot mark step '${step.id}' completed: supporting evidence has been refuted: ${evalResult.refutedIds.join(", ")}`,
-							);
-						}
-						if (evalResult.staleIds.length > 0) {
-							throw new ToolError(
-								`Cannot mark step '${step.id}' completed: supporting evidence is stale or invalidated: ${evalResult.staleIds.join(", ")}`,
-							);
-						}
-						if (evalResult.failedStageIds.length > 0) {
-							throw new ToolError(
-								`Cannot mark step '${step.id}' completed: supporting evidence contains failed execution stages: ${evalResult.failedStageIds.join(", ")}`,
-							);
-						}
-						for (const evId of step.evidence_ids) {
-							const rec = await evidenceStore.getRecord(evId);
-							if (rec) evidenceRecords.push(rec);
-						}
+						step.evidence_ids = Array.from(new Set([...(step.evidence_ids ?? []), ...params.evidence_ids]));
 					}
 
-					// 2. Acceptance criteria gate
-					const stepCriteria = getWorkflowAcceptanceCriteria(workflow, step.id);
-					if (stepCriteria.length > 0) {
-						let allSatisfied = true;
-						let proxyDetected = false;
-						let proxyReasonMessage: string | undefined;
+					if (Array.isArray(params.knowledge_refs) && params.knowledge_refs.length > 0) {
+						for (const knId of params.knowledge_refs) {
+							if (!validateKnowledgeIdFormat(knId)) {
+								throw new ToolError(
+									`Invalid knowledge ID format: '${knId}'. Must be a valid reverse knowledge ID starting with kn_rev_.`,
+								);
+							}
+							const existingRecord = await knowledgeStore.get(knId);
+							if (!existingRecord) {
+								throw new ToolError(`Knowledge ID '${knId}' not found in the project reverse knowledge store.`);
+							}
+						}
+						step.knowledge_refs = Array.from(new Set([...(step.knowledge_refs ?? []), ...params.knowledge_refs]));
+						workflow.knowledge_refs = Array.from(
+							new Set([...(workflow.knowledge_refs ?? []), ...params.knowledge_refs]),
+						);
+					}
+					if (Array.isArray(params.artifact_refs)) {
+						step.artifact_refs = Array.from(new Set([...(step.artifact_refs ?? []), ...params.artifact_refs]));
+					}
 
-						for (const criterion of stepCriteria) {
-							if (criterion.status === "waived" || criterion.status === "satisfied") continue;
+					if (params.runtime_session_id) {
+						step.runtime_session_id = params.runtime_session_id;
+						step.runtime_session_ids = Array.from(
+							new Set([...(step.runtime_session_ids ?? []), params.runtime_session_id]),
+						);
+						workflow.runtime_session_ids = Array.from(
+							new Set([...(workflow.runtime_session_ids ?? []), params.runtime_session_id]),
+						);
+					}
+					if (Array.isArray(params.runtime_session_ids) && params.runtime_session_ids.length > 0) {
+						step.runtime_session_ids = Array.from(
+							new Set([...(step.runtime_session_ids ?? []), ...params.runtime_session_ids]),
+						);
+						workflow.runtime_session_ids = Array.from(
+							new Set([...(workflow.runtime_session_ids ?? []), ...params.runtime_session_ids]),
+						);
+						if (!step.runtime_session_id) {
+							step.runtime_session_id = params.runtime_session_ids[0];
+						}
+					}
+					if (params.outputs !== undefined) {
+						step.outputs = params.outputs;
+					}
 
-							const satisfaction = await evaluateAcceptanceSatisfaction(
-								criterion,
-								evidenceRecords,
-								evidenceStore,
-							);
-							if (satisfaction.isProxy) {
-								proxyDetected = true;
-								proxyReasonMessage = satisfaction.proxyReason;
-								criterion.status = "proxy_verified";
-								criterion.is_proxy = true;
-								criterion.proxy_for_criterion_id = criterion.id;
-								criterion.proxy_evidence_ids = satisfaction.matchingEvidenceIds;
-								criterion.updated_at = new Date().toISOString();
-								updateAcceptanceCriterion(workflow, criterion);
-								allSatisfied = false;
-							} else if (satisfaction.status === "satisfied") {
-								criterion.status = "satisfied";
-								criterion.satisfied_by_evidence_ids = satisfaction.matchingEvidenceIds;
-								criterion.updated_at = new Date().toISOString();
-								updateAcceptanceCriterion(workflow, criterion);
-							} else {
-								allSatisfied = false;
+					const errorMsg = params.error ?? params.failure_reason;
+					if (errorMsg) {
+						step.error = errorMsg;
+						step.recovery_metadata = {
+							...step.recovery_metadata,
+							failure_reason: errorMsg,
+						};
+					}
+					if (params.installed_tool) {
+						const verification = verifyInstalledTool(params.installed_tool, { cwd: repoRoot });
+						const resumeStrategy = params.strategy ?? params.resume_strategy ?? "resume_original";
+						const resumeMeta: StepResumeMetadata = {
+							capability_id: params.capability_id,
+							installed_tool: params.installed_tool,
+							setup_command: params.setup_command ?? verification.setup_command,
+							verified: verification.verified,
+							strategy: resumeStrategy,
+							resumed_at: params.resumed_at ?? new Date().toISOString(),
+						};
+						step.recovery_metadata = {
+							...step.recovery_metadata,
+							resume: resumeMeta,
+						};
+					}
+					if (status === "completed") {
+						await cascadeEvidenceRefutation(workflow, evidenceStore).catch(() => null);
+
+						// 1. Evidence validation via evaluateEvidenceSupport
+						const evidenceRecords: EvidenceRecord[] = [];
+						if (step.evidence_ids && step.evidence_ids.length > 0) {
+							const evalResult = await evaluateEvidenceSupport(evidenceStore, step.evidence_ids);
+							if (evalResult.refutedIds.length > 0) {
+								throw new ToolError(
+									`Cannot mark step '${step.id}' completed: supporting evidence has been refuted: ${evalResult.refutedIds.join(", ")}`,
+								);
+							}
+							if (evalResult.staleIds.length > 0) {
+								throw new ToolError(
+									`Cannot mark step '${step.id}' completed: supporting evidence is stale or invalidated: ${evalResult.staleIds.join(", ")}`,
+								);
+							}
+							if (evalResult.failedStageIds.length > 0) {
+								throw new ToolError(
+									`Cannot mark step '${step.id}' completed: supporting evidence contains failed execution stages: ${evalResult.failedStageIds.join(", ")}`,
+								);
+							}
+							for (const evId of step.evidence_ids) {
+								const rec = await evidenceStore.getRecord(evId);
+								if (rec) evidenceRecords.push(rec);
 							}
 						}
 
-						if (!allSatisfied) {
-							await store.save(workflow);
-							const msg = proxyDetected
-								? (proxyReasonMessage ??
-									`Proxy observation recorded for step '${step.id}', but original acceptance criteria remain pending without explicit user waiver.`)
-								: `Step '${step.id}' cannot be marked completed: required acceptance criteria remain unsatisfied.`;
-							throw new ToolError(msg);
+						// 2. Acceptance criteria gate
+						const stepCriteria = getWorkflowAcceptanceCriteria(workflow, step.id);
+						if (stepCriteria.length > 0) {
+							let allSatisfied = true;
+							let proxyDetected = false;
+							let proxyReasonMessage: string | undefined;
+
+							for (const criterion of stepCriteria) {
+								if (criterion.status === "waived" || criterion.status === "satisfied") continue;
+
+								const satisfaction = await evaluateAcceptanceSatisfaction(
+									criterion,
+									evidenceRecords,
+									evidenceStore,
+								);
+								if (satisfaction.isProxy) {
+									proxyDetected = true;
+									proxyReasonMessage = satisfaction.proxyReason;
+									criterion.status = "proxy_verified";
+									criterion.is_proxy = true;
+									criterion.proxy_for_criterion_id = criterion.id;
+									criterion.proxy_evidence_ids = satisfaction.matchingEvidenceIds;
+									criterion.updated_at = new Date().toISOString();
+									updateAcceptanceCriterion(workflow, criterion);
+									allSatisfied = false;
+								} else if (satisfaction.status === "satisfied") {
+									criterion.status = "satisfied";
+									criterion.satisfied_by_evidence_ids = satisfaction.matchingEvidenceIds;
+									criterion.updated_at = new Date().toISOString();
+									updateAcceptanceCriterion(workflow, criterion);
+								} else {
+									allSatisfied = false;
+								}
+							}
+
+							if (!allSatisfied) {
+								await persist();
+								const msg = proxyDetected
+									? (proxyReasonMessage ??
+										`Proxy observation recorded for step '${step.id}', but original acceptance criteria remain pending without explicit user waiver.`)
+									: `Step '${step.id}' cannot be marked completed: required acceptance criteria remain unsatisfied.`;
+								throw new ToolError(msg);
+							}
+						}
+
+						// 3. Delivery & Target Device constraints gate
+						const isDelivery = step.is_delivery_step || step.delivery_scope === "delivery" || step.gate === "G4";
+						if (isDelivery) {
+							const constraints = workflow.metadata?.target_device_constraints as
+								| TargetDeviceConstraints
+								| undefined;
+							const dependencies = workflow.metadata?.dependencies as WorkflowDependencyRecord[] | undefined;
+							const constraintCheck = validateDeploymentConstraints(constraints, dependencies, "delivery");
+							if (!constraintCheck.valid) {
+								throw new ToolError(
+									`Delivery step '${step.id}' cannot be marked completed: ${constraintCheck.violationCode}: ${constraintCheck.violation}`,
+								);
+							}
 						}
 					}
 
-					// 3. Delivery & Target Device constraints gate
-					const isDelivery = step.is_delivery_step || step.delivery_scope === "delivery" || step.gate === "G4";
-					if (isDelivery) {
-						const constraints = workflow.metadata?.target_device_constraints as
-							| TargetDeviceConstraints
-							| undefined;
-						const dependencies = workflow.metadata?.dependencies as WorkflowDependencyRecord[] | undefined;
-						const constraintCheck = validateDeploymentConstraints(constraints, dependencies, "delivery");
-						if (!constraintCheck.valid) {
-							throw new ToolError(
-								`Delivery step '${step.id}' cannot be marked completed: ${constraintCheck.violationCode}: ${constraintCheck.violation}`,
-							);
+					step.attempts = (step.attempts ?? 0) + 1;
+					step.status = status;
+					step.updated_at = new Date().toISOString();
+
+					// Update overall workflow status: verify that ALL acceptance criteria are satisfied or waived
+					const allDone = workflow.steps.every(s => s.status === "completed" || s.status === "skipped");
+					const allCriteria = getWorkflowAcceptanceCriteria(workflow);
+					const unresolvedCriteria = allCriteria.filter(c => c.status !== "satisfied" && c.status !== "waived");
+					if (allDone && unresolvedCriteria.length === 0) {
+						workflow.status = "completed";
+					} else {
+						workflow.status = "active";
+					}
+
+					if (status === "completed") {
+						if (!workflow.metadata) workflow.metadata = {};
+						const activeProof = (workflow.metadata.active_proof as Record<string, string[]> | undefined) ?? {};
+						activeProof[step.id] = params.evidence_ids ?? [];
+						workflow.metadata.active_proof = activeProof;
+					}
+					workflow.updated_at = new Date().toISOString();
+					if (allDone && workflow.metadata?.auto_export_workspace === true) {
+						try {
+							const projectDir = repoRoot;
+							await exportWorkflowToWorkspace({
+								workflow,
+								evidenceStore,
+								projectDir,
+							});
+						} catch {
+							// completion policy export is non-fatal
 						}
 					}
-				}
 
-				step.attempts = (step.attempts ?? 0) + 1;
-				step.status = status;
-				step.updated_at = new Date().toISOString();
-
-				// Update overall workflow status: verify that ALL acceptance criteria are satisfied or waived
-				const allDone = workflow.steps.every(s => s.status === "completed" || s.status === "skipped");
-				const allCriteria = getWorkflowAcceptanceCriteria(workflow);
-				const unresolvedCriteria = allCriteria.filter(c => c.status !== "satisfied" && c.status !== "waived");
-				if (allDone && unresolvedCriteria.length === 0) {
-					workflow.status = "completed";
-				} else {
-					workflow.status = "active";
-				}
-
-				if (status === "completed") {
-					if (!workflow.metadata) workflow.metadata = {};
-					const activeProof = (workflow.metadata.active_proof as Record<string, string[]> | undefined) ?? {};
-					activeProof[step.id] = params.evidence_ids ?? [];
-					workflow.metadata.active_proof = activeProof;
-				}
-				workflow.updated_at = new Date().toISOString();
-				if (allDone && workflow.metadata?.auto_export_workspace === true) {
-					try {
-						const projectDir = repoRoot;
-						await exportWorkflowToWorkspace({
-							workflow,
-							evidenceStore,
-							projectDir,
-						});
-					} catch {
-						// completion policy export is non-fatal
-					}
-				}
-
-				await store.save(workflow);
+					return { workflow, step };
+				});
 				const metrics = computeWorkflowMetrics(workflow.steps, workflow.metadata);
 
 				const text = [

@@ -919,11 +919,11 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 				const errDetail = runResult.stderr.trim() || runResult.stdout.trim().slice(-500);
 				outcomeError = `Process exited with code ${runResult.exitCode}${errDetail ? `: ${errDetail}` : ""}`;
 				rawText = outcomeError;
-			} else if (runResult.truncated) {
-				outcomeStatus = "error";
-				outcomeError = "Output was truncated due to byte limit; incomplete decompiler result";
-				rawText = outcomeError;
 			} else {
+				if (runResult.truncated) {
+					outcomeStatus = "error";
+					outcomeError = "Output was truncated due to byte limit; incomplete decompiler result";
+				}
 				// Parse compact single-line frame from stdout, with stderr fallback
 				let jsonText: string | undefined;
 				for (const streamText of [runResult.stdout, runResult.stderr]) {
@@ -959,7 +959,7 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 							outcomeError = `Script action mismatch: expected '${params.action}', received '${String(payload.action)}'`;
 							rawText = outcomeError;
 						} else {
-							outcomeStatus = "ok";
+							if (!runResult.truncated) outcomeStatus = "ok";
 							if (params.action === "jni_enrich") {
 								let appliedItems: Array<{ address: string; name: string; prototype: string; code: string }> =
 									[];
@@ -989,7 +989,9 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 								outcomeError = "Ghidra decompiler produced empty output for target";
 								rawText = outcomeError;
 							} else {
-								rawText = payload.output;
+								rawText = runResult.truncated
+									? `${payload.output}\n\n[Notice] ${outcomeError}`
+									: payload.output;
 							}
 							if (typeof payload.target === "string") resolvedTarget = payload.target;
 							if (typeof payload.address === "string") resolvedAddress = payload.address;
@@ -1004,6 +1006,14 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 						outcomeError = errStr;
 						rawText = errStr;
 					}
+				} else if (runResult.truncated) {
+					const partialMatch = /"output"\s*:\s*"((?:\\.|[^"\\])*)/.exec(runResult.stdout);
+					const partialOutput = partialMatch?.[1]
+						?.replace(/\\n/g, "\n")
+						.replace(/\\"/g, '"')
+						.replace(/\\u003c/g, "<")
+						.replace(/\\u003e/g, ">");
+					rawText = partialOutput?.trim() ? `${partialOutput}\n\n[Notice] ${outcomeError}` : outcomeError!;
 				} else {
 					outcomeStatus = "error";
 					outcomeError = "Ghidra headless completed without producing decompiler script output";
@@ -1028,7 +1038,11 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 		const limit = Math.min(Math.max(1, params.limit ?? DEFAULT_LINE_LIMIT), MAX_LINE_LIMIT);
 		const pagedLines = lines.slice(offset, offset + limit);
 
+		const hasMore = offset + pagedLines.length < totalLines;
 		let outputText = pagedLines.join("\n");
+		if (hasMore && mode !== "summary") {
+			outputText += `\n\n[Showing lines ${offset + 1}-${offset + pagedLines.length} of ${totalLines}; pass offset=${offset + pagedLines.length} to continue]`;
+		}
 		if (mode === "summary") {
 			const preview = pagedLines.slice(0, 15);
 			outputText = [
@@ -1060,7 +1074,7 @@ export class GhidraInspectTool implements AgentTool<typeof ghidraInspectSchema, 
 				totalLines,
 				returnedLines: pagedLines.length,
 				offset,
-				hasMore: offset + pagedLines.length < totalLines,
+				hasMore,
 				error: outcomeError,
 				enrichment: previewSummary,
 				cryptoCandidates,

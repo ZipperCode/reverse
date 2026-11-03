@@ -688,6 +688,42 @@ describe("frida execution and action modes", () => {
 			await removeTestDir(tempDir);
 		}
 	});
+	it("records runner truncation in artifact JSON and omits artifact preservation claim when allocation is unavailable", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "frida-runner-trunc-"));
+		try {
+			const fullStdout = "B".repeat(9000);
+			const runner: FridaRunner = async () => ({
+				stdout: Buffer.from(fullStdout),
+				stderr: "",
+				exitCode: 0,
+				outputBytes: fullStdout.length,
+				truncated: true,
+				timedOut: false,
+			});
+			const which = (cmd: string) => (cmd === "frida" ? "/usr/local/bin/frida" : null);
+
+			const withArtifact = new FridaTool(createTestSession(tempDir, { allocateArtifact: true }), { runner, which });
+			const saved = await withArtifact.execute("call-saved", {
+				pid: 1234,
+				script: "console.log(1)",
+				max_bytes: 100,
+			});
+			const savedDetails = saved.details as FridaDetails;
+			const savedJson = JSON.parse(await fs.readFile(savedDetails.artifactPath!, "utf8"));
+			expect(savedJson.truncated).toBe(true);
+
+			const withoutArtifact = new FridaTool(createTestSession(tempDir), { runner, which });
+			const unsaved = await withoutArtifact.execute("call-unsaved", {
+				pid: 1234,
+				script: "console.log(1)",
+				max_bytes: 100,
+			});
+			expect(textOf(unsaved)).toContain("output truncated at 100 bytes for display.");
+			expect(textOf(unsaved)).not.toContain("preserved in session artifact");
+		} finally {
+			await removeTestDir(tempDir);
+		}
+	});
 });
 
 describe("frida CLI spawn pause semantics and literal parsing", () => {

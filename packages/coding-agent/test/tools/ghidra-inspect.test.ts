@@ -222,15 +222,18 @@ describe("ghidra_inspect transport and boundary handling", () => {
 		}
 	});
 
-	it("treats stream truncation as failure even if markers were seen", async () => {
+	it("treats stream truncation as failure while retaining partial decompiler output", async () => {
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ghidra-trunc-"));
 		try {
 			const sample = path.join(tempDir, "sample.bin");
 			await fs.writeFile(sample, "ELF-dummy", "utf8");
 
-			const { runner } = mockRunner(compactFrame({ status: "ok", action: "decompile", output: "int foo" }), {
-				truncated: true,
-			});
+			const { runner } = mockRunner(
+				compactFrame({ status: "ok", action: "decompile", output: "int foo() { return 1; }" }),
+				{
+					truncated: true,
+				},
+			);
 			const tool = new GhidraInspectTool(createTestSession(tempDir), {
 				which: () => "/opt/ghidra/support/analyzeHeadless",
 				runner,
@@ -245,6 +248,8 @@ describe("ghidra_inspect transport and boundary handling", () => {
 			expect(res.details.status).toBe("error");
 			expect(res.details.truncated).toBe(true);
 			expect(res.details.error).toContain("truncated");
+			expect(textOf(res)).toContain("int foo() { return 1; }");
+			expect(textOf(res)).toContain("incomplete decompiler result");
 		} finally {
 			await removeWithRetries(tempDir);
 		}
@@ -403,6 +408,7 @@ describe("ghidra_inspect transport and boundary handling", () => {
 			const text = textOf(res);
 			expect(text).toContain("Line A");
 			expect(text).toContain("Line B");
+			expect(text).toContain("pass offset=3 to continue");
 			expect(text).not.toContain("Line C");
 		} finally {
 			await removeWithRetries(tempDir);

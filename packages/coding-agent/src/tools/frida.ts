@@ -2752,7 +2752,7 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 							stdout: rawOutput,
 							stderr: run.stderr,
 							outputBytes: run.outputBytes,
-							truncated: false,
+							truncated: run.truncated,
 							timedOut: run.timedOut,
 							...(run.timedOut ? { reason: `Execution watchdog timed out after ${timeoutSeconds}s` } : {}),
 							...(run.cleanup ? { cleanup: run.cleanup } : {}),
@@ -3074,7 +3074,9 @@ export class FridaTool implements AgentTool<typeof fridaSchema, FridaDetails> {
 		}
 		if (isTruncated) {
 			lines.push(
-				`\n… output truncated at ${maxBytes} bytes for display; full record preserved in session artifact.`,
+				artifactId
+					? `\n… output truncated at ${maxBytes} bytes for display; full record preserved in session artifact.`
+					: `\n… output truncated at ${maxBytes} bytes for display.`,
 			);
 		}
 		if (artifactId) {

@@ -214,12 +214,18 @@ export function upsertFileOperations(
 const TOOL_RESULT_MAX_CHARS = 2000;
 
 /**
- * Truncate tool results to the same representation used in summarization prompts.
+ * Truncate tool results while retaining retrievable artifact and evidence references.
  */
 export function truncateToolResultForSummary(text: string): string {
 	if (text.length <= TOOL_RESULT_MAX_CHARS) return text;
+	const head = text.slice(0, TOOL_RESULT_MAX_CHARS);
+	const tail = text.slice(TOOL_RESULT_MAX_CHARS);
 	const truncatedChars = text.length - TOOL_RESULT_MAX_CHARS;
-	return `${text.slice(0, TOOL_RESULT_MAX_CHARS)}\n\n[... ${truncatedChars} more characters truncated]`;
+	const references = Array.from(
+		new Set(tail.match(/(?:artifact:\/\/[^\s<>)\]}]+|ev_(?:fact|hyp|conc|unk)_[A-Za-z0-9_-]+)/g) ?? []),
+	).filter(ref => !head.includes(ref));
+	const suffix = [`[... ${truncatedChars} more characters truncated]`, ...references].join("\n");
+	return `${head}\n\n${suffix}`;
 }
 
 const SUMMARY_BOUNDARY_TAG_RE = /<\s*\/?\s*(?:conversation|previous-summary)\s*>/gi;

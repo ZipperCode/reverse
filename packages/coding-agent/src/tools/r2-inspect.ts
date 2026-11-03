@@ -618,7 +618,14 @@ function parseR2Json(stdout: string): ParsedJson | FailedJson {
 			try {
 				return { value: JSON.parse(trimmed.slice(start, end + 1)) };
 			} catch {
-				// Fall through to the original error.
+				if (trimmed[start] === "[") {
+					const arrayClose = trimmed.slice(start, end + 1).replace(/,\s*$/, "");
+					try {
+						return { value: JSON.parse(`${arrayClose}]`) };
+					} catch {
+						// Fall through to the original error.
+					}
+				}
 			}
 		}
 		return { error: error instanceof Error ? error.message : String(error) };
@@ -1027,11 +1034,23 @@ export class R2InspectTool implements AgentTool<typeof r2InspectSchema, R2Inspec
 			const truncationNote = run.truncated
 				? ` Output was truncated at ${maxBytes} bytes, which may have interrupted the JSON payload.`
 				: "";
+			let artifactLine = "";
+			if (run.truncated && this.session.allocateOutputArtifact) {
+				try {
+					const allocation = await this.session.allocateOutputArtifact("r2");
+					if (allocation?.path && allocation.id) {
+						await Bun.write(allocation.path, run.stdout);
+						artifactLine = `\nCaptured raw output saved to artifact: ${allocation.id}`;
+					}
+				} catch {
+					// Best-effort artifact spill
+				}
+			}
 			return {
 				content: [
 					{
 						type: "text",
-						text: `radare2 returned output that could not be parsed as JSON (${detail}).${truncationNote}\n\nBounded raw output:\n${raw || "(empty)"}`,
+						text: `radare2 returned output that could not be parsed as JSON (${detail}).${truncationNote}${artifactLine}\n\nBounded raw output:\n${raw || "(empty)"}`,
 					},
 				],
 				details: {

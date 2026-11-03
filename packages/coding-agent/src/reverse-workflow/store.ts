@@ -242,7 +242,8 @@ export class ReverseWorkflowStore {
 					? `Verify: ${input.goal.slice(0, 100)}`
 					: `Delivery Verification: ${path.basename(input.target)}`,
 				subject: goalSubject,
-				min_assurance: "dynamic_call_observation",
+				min_assurance: "static_candidate",
+
 				status: "pending",
 			};
 			setWorkflowAcceptanceCriteria(record, [defaultCriterion]);
@@ -297,6 +298,22 @@ export class ReverseWorkflowStore {
 				}
 			}
 			await this.writeWorkflowFileUnlocked(record);
+		});
+	}
+	/**
+	 * Update a workflow from its latest on-disk state while holding the write lock.
+	 */
+	async update<T>(
+		id: string,
+		operation: (record: ReverseWorkflowRecord, persist: () => Promise<void>) => Promise<T> | T,
+	): Promise<T> {
+		return await withWorkflowStoreWrite(this.projectDirectory, this.lockPath, async () => {
+			const record = await this.get(id);
+			if (!record) throw new ToolError(`Workflow '${id}' not found.`);
+			const persist = () => this.writeWorkflowFileUnlocked(record);
+			const result = await operation(record, persist);
+			await persist();
+			return result;
 		});
 	}
 
