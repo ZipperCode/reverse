@@ -35,6 +35,7 @@ function plainRows(rows: readonly string[]): string[] {
 	return rows.map(row =>
 		Bun.stripANSI(row)
 			.replace(/[│█]$/, "")
+			.replace(/\[(?:↑ Go to top|↓ Jump to bottom)\]/g, "")
 			.trimEnd(),
 	);
 }
@@ -355,7 +356,7 @@ describe("tui.mouse default off runtime behavior", () => {
 		mode.ui.renderNow();
 		expect(plainRows(term.getViewport()).some(row => row.includes("ROW-100"))).toBe(true);
 	});
-	it("keeps navigation to one row without an idle throughput row or duplicate working rate", async () => {
+	it("floats jump controls over history and scrolls active execution away from fixed input/status", async () => {
 		cfgComposerShape.set(mode.settings, "default");
 		cfgComposerTokenRate.set(mode.settings, true);
 		await mode.init({ suppressWelcomeIntro: true });
@@ -369,14 +370,25 @@ describe("tui.mouse default off runtime behavior", () => {
 		expect(mode.statusContainer.render(120)).toEqual([]);
 		expect(mode.composer.transcriptViewportHeight).toBe(H);
 		const idle = plainRows(term.getViewport());
-		expect(idle[H]).toContain("Go to top");
-		expect(idle[H]).not.toContain("tok/s");
+		expect(Bun.stripANSI(term.getViewport()[0]!)).toContain("Go to top");
+		expect(idle.slice(H).join("\n")).not.toContain("Go to top");
 		mode.ensureLoadingAnimation();
 		mode.setWorkingMessage("Inspecting navigation layout");
 		mode.ui.renderNow();
 		const working = Bun.stripANSI(mode.statusContainer.render(120).join("\n"));
 		expect(working).toContain("Inspecting navigation layout");
 		expect(working).not.toContain("tok/s");
+		expect(mode.composer.transcriptViewportHeight).toBe(H);
+		const dock = plainRows(term.getViewport()).slice(H);
+		mode.composer.scrollTranscript(-40);
+		mode.ui.renderNow();
+		expect(plainRows(term.getViewport()).join("\n")).not.toContain("Inspecting navigation layout");
+		expect(plainRows(term.getViewport()).slice(H)).toEqual(dock);
+		expect(mode.editor.getText()).toBe("compact draft");
+		expect(mode.ui.getDebugPaint()?.cursor?.visible).toBe(true);
+		const surface = mode.composer.describeSurface();
+		expect(surface.main).toContain(mode.loadingAnimation!);
+		expect(surface.dock).not.toContain(mode.statusContainer);
 	});
 
 	it("scrolls TODO and informational panels away while editor/status stay fixed, including short windows", async () => {
@@ -473,7 +485,7 @@ describe("tui.mouse default off runtime behavior", () => {
 			linkClicks++;
 			return true;
 		};
-		click(0, 120, H + 1);
+		click(0, 119, H);
 		expect(plainRows(term.getViewport()).some(row => row.includes("ROW-099"))).toBe(true);
 		expect(detailClicks).toBe(0);
 		expect(linkClicks).toBe(0);

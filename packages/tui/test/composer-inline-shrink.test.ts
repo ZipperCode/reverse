@@ -12,7 +12,12 @@ import { TERMINAL, ImageProtocol } from "@reverse/tui/terminal-capabilities";
 const content = (term: VirtualTerminal, height: number) =>
 	screen(term)
 		.slice(0, height)
-		.map(row => row.replace(/[│█]$/, "").trimEnd());
+		.map(row =>
+			row
+				.replace(/[│█]$/, "")
+				.replace(/\[(?:↑ Go to top|↓ Jump to bottom)\]/g, "")
+				.trimEnd(),
+		);
 
 withoutTerminalMultiplexer();
 beforeAll(() => initTheme());
@@ -58,8 +63,8 @@ describe("Composer fixed bottom dock", () => {
 			h.composer.scrollTranscript(-10);
 			await h.scheduler.settle(h.terminal);
 			const top = content(h.terminal, h.composer.transcriptViewportHeight)[0];
-			expect(top).toBe("");
-			expect(content(h.terminal, h.composer.transcriptViewportHeight)[1]).toBe("ROW-084");
+			expect(top).toBe("ROW-083");
+			expect(content(h.terminal, h.composer.transcriptViewportHeight)[1]).toBe("");
 			append(h.transcript, 1, 100);
 			h.composer.ui.requestRender();
 			await h.scheduler.settle(h.terminal);
@@ -216,8 +221,8 @@ describe("Composer fixed bottom dock", () => {
 			append(h.transcript, 100);
 			await h.scheduler.settle(h.terminal);
 			const H = h.composer.transcriptViewportHeight;
-			expect(screen(h.terminal)[H]).toContain("Go to top");
-			expect(screen(h.terminal)[H]).toContain("At bottom");
+			expect(screen(h.terminal)[0]).toContain("Go to top");
+			expect(screen(h.terminal)[H]).not.toContain("Go to top");
 			expect(screen(h.terminal)[H - 1]?.at(-1)).toBe("█");
 			expect(mouse(0, 79, Math.floor(H / 2))).toBe(true);
 			await h.scheduler.settle(h.terminal);
@@ -239,10 +244,10 @@ describe("Composer fixed bottom dock", () => {
 			h.terminal.resize(60, 12);
 			await h.scheduler.settle(h.terminal);
 			expect(mouse(32, 59, 0)).toBe(false);
-			expect(mouse(0, 0, h.composer.transcriptViewportHeight)).toBe(true);
+			expect(mouse(0, 58, 0)).toBe(true);
 			await h.scheduler.settle(h.terminal);
 			expect(content(h.terminal, h.composer.transcriptViewportHeight)[0]).toBe("ROW-000");
-			expect(mouse(0, 59, h.composer.transcriptViewportHeight)).toBe(true);
+			expect(mouse(0, 58, h.composer.transcriptViewportHeight - 1)).toBe(true);
 			await h.scheduler.settle(h.terminal);
 			expect(content(h.terminal, h.composer.transcriptViewportHeight).at(-1)).toBe("ROW-099");
 		} finally {
@@ -284,25 +289,25 @@ describe("Composer fixed bottom dock", () => {
 			append(h.transcript, 100);
 			await h.scheduler.settle(h.terminal);
 			let H = h.composer.transcriptViewportHeight;
-			expect(screen(h.terminal)[H]).toContain("到顶部");
-			expect(screen(h.terminal)[H]).toContain("回到底部");
-			expect(screen(h.terminal)[H]).toContain("已在底部");
+			expect(screen(h.terminal)[0]).toContain("到顶部");
+			expect(screen(h.terminal)[H - 1]).not.toContain("回到底部");
 			h.composer.scrollTranscriptToRatio(0.5);
 			await h.scheduler.settle(h.terminal);
-			expect(screen(h.terminal)[H]).toContain("历史位置：约 50%");
+			expect(screen(h.terminal)[H - 1]).toContain("回到底部");
 			locale = "en";
 			h.composer.ui.requestRender();
 			await h.scheduler.settle(h.terminal);
-			expect(screen(h.terminal)[H]).toContain("History: ~50%");
-			expect(screen(h.terminal)[H]).toContain("Jump to bottom");
-			for (const columns of [30, 20, 2]) {
+			expect(screen(h.terminal)[0]).toContain("Go to top");
+			expect(screen(h.terminal)[H - 1]).toContain("Jump to bottom");
+			for (const columns of [30, 20, 3]) {
 				h.terminal.resize(columns, 24);
 				await h.scheduler.settle(h.terminal);
 				H = h.composer.transcriptViewportHeight;
-				const nav = screen(h.terminal)[H]!;
-				expect(visibleWidth(nav)).toBeLessThanOrEqual(columns);
-				expect(nav.startsWith("↑")).toBe(true);
-				expect(nav.endsWith("↓")).toBe(true);
+				const rows = screen(h.terminal);
+				expect(visibleWidth(rows[0]!)).toBeLessThanOrEqual(columns);
+				expect(visibleWidth(rows[H - 1]!)).toBeLessThanOrEqual(columns);
+				expect(rows[0]).toContain("↑");
+				expect(rows[H - 1]).toContain("↓");
 			}
 		} finally {
 			h.composer.stop();

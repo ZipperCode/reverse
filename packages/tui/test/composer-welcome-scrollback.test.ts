@@ -42,11 +42,14 @@ it("keeps an oversized startup changelog reachable above the fixed editor after 
 		await scheduler.settle(terminal);
 		const height = composer.transcriptViewportHeight;
 		expect(screen(terminal)[height - 1]?.at(-1)).toBe("█");
-		expect(screen(terminal)[height]).toMatch(/^\[↑ .*\[↓ .*\]$/);
+		expect(screen(terminal)[height]).toBe("EDITOR");
 		const seen = new Set<string>();
 		for (let page = 0; page < 5; page++) {
 			for (const row of screen(terminal).slice(0, composer.transcriptViewportHeight)) {
-				const text = row.replace(/[│█]$/, "").trimEnd();
+				const text = row
+					.replace(/[│█]$/, "")
+					.replace(/\[(?:↑ Go to top|↓ Jump to bottom)\]/g, "")
+					.trimEnd();
 				if (text.startsWith("Changelog entry ")) seen.add(text);
 			}
 			composer.scrollTranscript(-25);

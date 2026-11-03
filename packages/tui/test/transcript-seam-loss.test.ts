@@ -57,9 +57,11 @@ async function browse(
 		const height = composer.transcriptViewportHeight;
 		const rows = terminal.getViewport().map(row => Bun.stripANSI(row).trimEnd());
 		expect(rows.slice(0, height).every(row => /[│█]$/.test(row))).toBe(true);
-		expect(rows[height]).toMatch(/^\[↑ .*\[↓ .*\]$/);
 		for (const row of rows.slice(0, height)) {
-			const text = row.replace(/[│█]$/, "").trim();
+			const text = row
+				.replace(/[│█]$/, "")
+				.replace(/\[(?:↑ Go to top|↓ Jump to bottom)\]/g, "")
+				.trim();
 			const token = /QZ[ISC](\d{3})/.exec(text);
 			if (token) seen.set(Number(token[1]), text);
 		}

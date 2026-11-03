@@ -2432,21 +2432,29 @@ export class InteractiveMode implements InteractiveModeContext {
 				this.modelCycleContainer,
 				this.deferredCommandContainer,
 				this.progressHudContainer,
-				// 只有状态行与输入组件固定；TODO、子代理及其他信息面板随历史滚动。
 				this.statusContainer,
+				// 执行提示也随历史滚动，只有输入区与底部状态栏固定。
 				this.attachmentChipsContainer,
 				this.hookWidgetContainerAbove,
 				this.editorContainer,
 				this.hookWidgetContainerBelow,
 			],
 			{
-				dockStart: this.statusContainer,
-				// Natively the HUD pills lead the dock, queued messages sit between
-				// the working row and the composer, and the attachment chips live
-				// inside the composer.
+				dockStart: this.attachmentChipsContainer,
+				// 原生终端同样只固定输入组件和状态计数，信息与执行面板留在正文。
 				nativeDock: [
 					new HudPillsRow(this),
+					this.hookWidgetContainerAbove,
+					this.editorContainer,
+					this.hookWidgetContainerBelow,
+				],
+				nativeTail: [
+					this.pendingShellContainer,
+					this.pendingMessagesContainer,
+					this.todoContainer,
+					this.subagentContainer,
 					this.btwContainer,
+					this.reportContainer,
 					this.omfgContainer,
 					this.cleanseContainer,
 					this.errorBannerContainer,
@@ -2454,14 +2462,7 @@ export class InteractiveMode implements InteractiveModeContext {
 					this.deferredCommandContainer,
 					this.progressHudContainer,
 					this.statusContainer,
-					this.pendingMessagesContainer,
-					this.hookWidgetContainerAbove,
-					this.editorContainer,
-					this.hookWidgetContainerBelow,
 				],
-				// Deferred shell runs are transcript output: natively they flow at its
-				// end, where they stay when they move in, not pinned over the composer.
-				nativeTail: [this.pendingShellContainer],
 			},
 		);
 		this.ui.setFocus(this.editor);

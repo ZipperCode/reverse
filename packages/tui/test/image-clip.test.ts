@@ -254,7 +254,7 @@ describe("fullscreen Composer image window", () => {
 			await scheduler.settle(term);
 			const height = composer.transcriptViewportHeight;
 			expect(screen(term)[5]).toBe("EDITOR");
-			expect(screen(term)[height]).toMatch(/^\[↑ .*\[↓ .*\]$/);
+			expect(screen(term)[height]).toBe("EDITOR");
 			expect(screen(term)[height - 1]?.at(-1)).toBe("█");
 			expect(content(term, height)[height - 1]).toBe("after");
 			expect(term.graphicsPlacements().every(p => p.row >= 0 && p.row + p.numRows <= height)).toBe(true);

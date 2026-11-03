@@ -105,7 +105,7 @@ describe("ReportPanel in text mode", () => {
 		const screen = h.screen();
 		const height = h.composer.transcriptViewportHeight;
 		expect(screen.at(-1)).toBe("EDITOR");
-		expect(screen[height]).toMatch(/^\[↑ .*\[↓ .*\]$/);
+		expect(screen[height]).toBe("EDITOR");
 		expect(screen[height - 1]?.at(-1)).toBe("█");
 		expect(screen[height - 1]?.replace(/[│█]$/, "").trimEnd()).toBe("Transcript 59");
 		expect(screen.some(row => row.includes("Full Changelog"))).toBe(false);

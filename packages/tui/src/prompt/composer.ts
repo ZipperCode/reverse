@@ -314,8 +314,7 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 				height: number;
 				rows: number;
 				track: Set<number>;
-				actions: { start: number; end: number; ratio: number }[];
-				navigation: boolean;
+				actions: { row: number; start: number; end: number; ratio: number }[];
 		  }
 		| undefined;
 	#transcriptDragging = false;
@@ -476,8 +475,7 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 		}
 		const visibleDock = height === 0 ? [] : dock.slice(drop, drop + height);
 		const free = Math.max(0, height - visibleDock.length);
-		const navigation = free >= 3 && width >= 2;
-		const available = free - Number(navigation);
+		const available = free;
 		this.#transcriptViewportHeight = available;
 		const old = this.#scrollGeometry;
 		if (
@@ -495,8 +493,7 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 			height,
 			rows: available,
 			track: new Set<number>(),
-			actions: [] as { start: number; end: number; ratio: number }[],
-			navigation,
+			actions: [] as { row: number; start: number; end: number; ratio: number }[],
 		};
 		this.#scrollGeometry = geometry;
 		const now = performance.now();
@@ -523,41 +520,29 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 				geometry.track.add(row);
 			}
 		}
-		const nav: string[] = [];
-		if (navigation) {
+		// 跳转按钮覆盖正文右侧，保留全部正文行高；仅显示仍可执行的方向。
+		if (available >= 2 && width >= 3) {
 			const locale = this.#getScrollLocale();
-			let top = `[↑ ${tuiHint("transcript.toTop", locale, "Go to top")}]`;
-			let bottom = `[↓ ${tuiHint("transcript.toBottom", locale, "Jump to bottom")}]`;
-			if (visibleWidth(top) + visibleWidth(bottom) > width) {
-				top = "↑";
-				bottom = "↓";
-			}
-			const topWidth = visibleWidth(top);
-			const bottomWidth = visibleWidth(bottom);
-			let line = compositeLineAt("", theme.fg(window.atStart ? "dim" : "accent", top), 0, topWidth, width);
-			line = compositeLineAt(
-				line,
-				theme.fg(window.atEnd ? "dim" : "accent", bottom),
-				width - bottomWidth,
-				bottomWidth,
-				width,
-			);
-			const position = window.atEnd
-				? tuiHint("transcript.atBottom", locale, "At bottom")
-				: tuiHint("transcript.position", locale, "History: ~{percent}%").replace(
-						"{percent}",
-						String(Math.round(window.progress * 100)),
-					);
-			const positionWidth = visibleWidth(position);
-			const center = Math.floor((width - positionWidth) / 2);
-			if (center > topWidth && center + positionWidth < width - bottomWidth) {
-				line = compositeLineAt(line, theme.fg("dim", position), center, positionWidth, width);
-			}
-			if (!window.atStart) geometry.actions.push({ start: 0, end: topWidth, ratio: 0 });
-			if (!window.atEnd) geometry.actions.push({ start: width - bottomWidth, end: width, ratio: 1 });
-			nav.push(line);
+			const paintJump = (row: number, ratio: number, label: string): void => {
+				if (TERMINAL.isImageLine(history[row]!)) return;
+				const budget = width - 1;
+				const text = visibleWidth(label) <= budget ? label : ratio === 0 ? "↑" : "↓";
+				const length = visibleWidth(text);
+				const start = budget - length;
+				history[row] = compositeLineAt(
+					history[row]!,
+					theme.bgFill("selectedBg", theme.fg("accent", text)),
+					start,
+					length,
+					width,
+				);
+				geometry.actions.push({ row, start, end: budget, ratio });
+			};
+			if (!window.atStart) paintJump(0, 0, `[↑ ${tuiHint("transcript.toTop", locale, "Go to top")}]`);
+			if (!window.atEnd)
+				paintJump(available - 1, 1, `[↓ ${tuiHint("transcript.toBottom", locale, "Jump to bottom")}]`);
 		}
-		const mutable = [...history, ...nav, ...visibleDock];
+		const mutable = [...history, ...visibleDock];
 		const spans: ViewportClickSpan[] = [];
 		for (const span of window.spans) {
 			const ids = (span.component as Component & { getClickFocusAgentIds?(): string[] }).getClickFocusAgentIds?.();
@@ -639,8 +624,10 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 		}
 		this.cancelTranscriptDrag();
 		if (!event.leftClick || !geometry) return false;
-		if (geometry.navigation && viewportRow === geometry.rows) {
-			const action = geometry.actions.find(action => event.col >= action.start && event.col < action.end);
+		{
+			const action = geometry.actions.find(
+				action => viewportRow === action.row && event.col >= action.start && event.col < action.end,
+			);
 			if (action) {
 				if (action.ratio === 1) this.scrollTranscriptToBottom();
 				else this.scrollTranscriptToRatio(action.ratio);
