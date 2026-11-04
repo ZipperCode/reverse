@@ -1,5 +1,9 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
+import { pathToFileURL } from "node:url";
+import * as clipboard from "@reverse/coding-agent/utils/clipboard";
+import * as opener from "@reverse/coding-agent/utils/open";
+import { applyHyperlinkSetting } from "@reverse/tui/render/hyperlink";
 import { Agent } from "@reverse/agent";
 import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
 import { resetSettingsForTest, Settings } from "@reverse/coding-agent/config/settings";
@@ -90,6 +94,8 @@ describe("tui.mouse default off runtime behavior", () => {
 	});
 
 	afterEach(async () => {
+		vi.restoreAllMocks();
+		applyHyperlinkSetting("auto");
 		mode?.stop();
 		await session?.dispose();
 		authStorage?.close();
@@ -108,6 +114,7 @@ describe("tui.mouse default off runtime behavior", () => {
 
 		// An SGR click with tui.mouse=false is consumed without leaking into the editor draft
 		term.sendInput("\x1b[<0;10;10M");
+		term.sendInput("\x1b[<0;10;10m");
 		await term.waitForRender();
 		expect(mode.editor.getText()).toBe("");
 
@@ -169,6 +176,7 @@ describe("tui.mouse default off runtime behavior", () => {
 
 		// While default false: SGR click on header is consumed and does NOT expand
 		term.sendInput(`\x1b[<0;5;${headerRow + 1}M`);
+		term.sendInput(`\x1b[<0;5;${headerRow + 1}m`);
 		await term.waitForRender();
 		expect(tool.expanded).toBe(false);
 		expect(mode.editor.getText()).toBe("");
@@ -180,6 +188,7 @@ describe("tui.mouse default off runtime behavior", () => {
 
 		// SGR click on header now expands detail
 		term.sendInput(`\x1b[<0;5;${headerRow + 1}M`);
+		term.sendInput(`\x1b[<0;5;${headerRow + 1}m`);
 		await term.waitForRender(() => tool.expanded === true);
 		expect(tool.expanded).toBe(true);
 
@@ -193,8 +202,106 @@ describe("tui.mouse default off runtime behavior", () => {
 		const expandedHeaderRow = plainRows(term.getViewport()).findIndex(row => row.includes("Bash"));
 		expect(expandedHeaderRow).toBeGreaterThanOrEqual(0);
 		term.sendInput(`\x1b[<0;5;${expandedHeaderRow + 1}M`);
+		term.sendInput(`\x1b[<0;5;${expandedHeaderRow + 1}m`);
 		await term.waitForRender();
 		expect(tool.expanded).toBe(true);
+	});
+
+	it("opens generic web/file links on release with mouse actions off and copies real drags without activation", async () => {
+		const open = vi.spyOn(opener, "openPath").mockImplementation(() => {});
+		const copy = vi.spyOn(clipboard, "copyToClipboard").mockResolvedValue(undefined);
+		const showError = vi.spyOn(mode, "showError").mockImplementation(() => {});
+		const showWarning = vi.spyOn(mode, "showWarning").mockImplementation(() => {});
+		await mode.init({ suppressWelcomeIntro: true });
+		void mode.getUserInput();
+		applyHyperlinkSetting("always");
+		const file = path.join(tempDir.path(), "content link.txt");
+		await Bun.write(file, "local content");
+		const fileUrl = pathToFileURL(file).href;
+		const osc = (url: string, label: string) => `\x1b]8;;${url}\x07${label}\x1b]8;;\x07`;
+		mode.chatContainer.addChild(new Text(osc("https://example.com/docs", "web target"), 0, 0));
+		mode.chatContainer.addChild(new Text(osc(fileUrl, "file target"), 0, 0));
+		mode.chatContainer.addChild(new Text(osc(`vscode://file${file}:2:1`, "editor target"), 0, 0));
+		mode.chatContainer.addChild(new Text(osc("javascript:alert(1)", "unsafe target"), 0, 0));
+		const missing = path.join(tempDir.path(), "missing.txt");
+		mode.chatContainer.addChild(new Text(osc(pathToFileURL(missing).href, "missing target"), 0, 0));
+		mode.ui.renderNow();
+		expect(cfgTuiMouse.get(mode.settings)).toBe(false);
+		expect(session.extensionRunner).toBeUndefined();
+		const locate = (label: string) => {
+			const rows = plainRows(term.getViewport());
+			const row = rows.findIndex(line => line.includes(label));
+			expect(row).toBeGreaterThanOrEqual(0);
+			return { row, col: rows[row]!.indexOf(label) };
+		};
+		const mouse = (button: number, row: number, col: number, release = false) => {
+			term.sendInput(`\x1b[<${button};${col + 1};${row + 1}${release ? "m" : "M"}`);
+			mode.ui.renderNow();
+		};
+		const web = locate("web target");
+		mouse(0, web.row, web.col);
+		expect(open).not.toHaveBeenCalled();
+		mouse(32, web.row, web.col + 2);
+		mouse(0, web.row, web.col + 2, true);
+		await Promise.resolve();
+		expect(copy).toHaveBeenCalledWith("web");
+		expect(open).not.toHaveBeenCalled();
+		for (const [label, target] of [
+			["web target", "https://example.com/docs"],
+			["file target", file],
+			["editor target", file],
+		] as const) {
+			const point = locate(label);
+			mouse(0, point.row, point.col);
+			mouse(0, point.row, point.col, true);
+			expect(open).toHaveBeenLastCalledWith(target);
+		}
+		const unsafe = locate("unsafe target");
+		mouse(0, unsafe.row, unsafe.col);
+		mouse(0, unsafe.row, unsafe.col, true);
+		expect(open).toHaveBeenCalledTimes(3);
+		const absent = locate("missing target");
+		mouse(0, absent.row, absent.col);
+		mouse(0, absent.row, absent.col, true);
+		expect(showError).toHaveBeenCalledWith(`File not found: ${missing}`);
+		expect(open).toHaveBeenCalledTimes(3);
+		const failed = Promise.withResolvers<void>();
+		showWarning.mockImplementationOnce(() => failed.resolve());
+		copy.mockRejectedValueOnce(new Error("clipboard unavailable"));
+		mouse(0, web.row, web.col);
+		mouse(32, web.row, web.col + 2);
+		mouse(0, web.row, web.col + 2, true);
+		await failed.promise;
+		expect(showWarning).toHaveBeenCalledWith("Copy failed: clipboard unavailable");
+	});
+
+	it("cancels real content drags on keyboard, wheel and scrollbar input without opening or copying", async () => {
+		const open = vi.spyOn(opener, "openPath").mockImplementation(() => {});
+		const copy = vi.spyOn(clipboard, "copyToClipboard").mockResolvedValue(undefined);
+		await mode.init({ suppressWelcomeIntro: true });
+		void mode.getUserInput();
+		for (let i = 0; i < 100; i++) mode.chatContainer.addChild(new Text(`ROW-${String(i).padStart(3, "0")}`, 0, 0));
+		mode.ui.renderNow();
+		const mouse = (button: number, col: number, row: number, release = false) => {
+			term.sendInput(`\x1b[<${button};${col};${row}${release ? "m" : "M"}`);
+			mode.ui.renderNow();
+		};
+		for (const cancel of ["key", "wheel", "scrollbar"] as const) {
+			mode.composer.scrollTranscriptToBottom();
+			mode.ui.renderNow();
+			mouse(0, 2, 3);
+			mouse(32, 5, 3);
+			const before = plainRows(term.getViewport())[0];
+			if (cancel === "key") term.sendInput("x");
+			else if (cancel === "wheel") mouse(64, 5, 3);
+			else mouse(0, 120, 3);
+			mode.ui.renderNow();
+			if (cancel !== "key") expect(plainRows(term.getViewport())[0]).not.toBe(before);
+			mouse(0, 5, 3, true);
+		}
+		expect(open).not.toHaveBeenCalled();
+		expect(copy).not.toHaveBeenCalled();
+		expect(mode.editor.getText()).toBe("x");
 	});
 
 	it("scrolls transcript by 3 rows across history/editor/status and keeps browsing stable across appends", async () => {

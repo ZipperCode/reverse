@@ -27,6 +27,7 @@ import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 
 import { cfgTuiMouse } from "@reverse/coding-agent/modes/settings";
 import { setNativeRendering } from "@reverse/tui/native/state";
+import * as opener from "@reverse/coding-agent/utils/open";
 
 function plainRows(rows: readonly string[]): string[] {
 	return rows.map(row => Bun.stripANSI(row).trimEnd());
@@ -63,6 +64,7 @@ describe("inline click-to-focus geometry", () => {
 		eventBus = new EventBus();
 		const composer = new Composer({ terminal: term });
 		mode = new InteractiveMode(session, "test", undefined, () => {}, undefined, undefined, eventBus, composer);
+		vi.spyOn(opener, "openPath").mockImplementation(() => {});
 	});
 	afterEach(async () => {
 		vi.restoreAllMocks();
@@ -264,6 +266,7 @@ describe("inline click-to-focus geometry", () => {
 			expect(screenRow).toBeGreaterThanOrEqual(0);
 			expect(mode.resolveViewportClickCandidates(screenRow)).not.toEqual([]);
 			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+			term.sendInput(`\x1b[<0;5;${screenRow + 1}m`);
 		};
 
 		// Collapsed by default: three rows plus the expander.
@@ -309,6 +312,7 @@ describe("inline click-to-focus geometry", () => {
 			const screenRow = viewport.findIndex(row => row.includes(marker));
 			expect(screenRow).toBeGreaterThanOrEqual(0);
 			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+			term.sendInput(`\x1b[<0;5;${screenRow + 1}m`);
 		};
 
 		// By default collapsed: tool header (Bash) is visible
@@ -367,6 +371,7 @@ describe("inline click-to-focus geometry", () => {
 			const screenRow = viewport.findIndex(row => row.includes(marker));
 			expect(screenRow).toBeGreaterThanOrEqual(0);
 			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+			term.sendInput(`\x1b[<0;5;${screenRow + 1}m`);
 		};
 
 		// Collapsed by default: summary is visible, thinking body is hidden
@@ -440,6 +445,7 @@ describe("inline click-to-focus geometry", () => {
 			const screenRow = viewport.findIndex(row => row.includes(marker));
 			expect(screenRow).toBeGreaterThanOrEqual(0);
 			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+			term.sendInput(`\x1b[<0;5;${screenRow + 1}m`);
 		};
 
 		// 1. By default collapsed while streaming: shows live pulse "Thinking…"
@@ -496,6 +502,7 @@ describe("inline click-to-focus geometry", () => {
 			const screenRow = viewport.findIndex(row => row.includes(marker));
 			expect(screenRow).toBeGreaterThanOrEqual(0);
 			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+			term.sendInput(`\x1b[<0;5;${screenRow + 1}m`);
 		};
 
 		// Collapsed by default: header shows Read src/sample-file.ts
@@ -545,6 +552,7 @@ describe("inline click-to-focus geometry", () => {
 			const screenRow = viewport.findIndex(row => row.includes(marker));
 			expect(screenRow).toBeGreaterThanOrEqual(0);
 			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+			term.sendInput(`\x1b[<0;5;${screenRow + 1}m`);
 		};
 
 		// Collapsed by default: header shows test-skill chip
@@ -573,6 +581,7 @@ describe("inline click-to-focus geometry", () => {
 		const chipRow = plainRows(term.getViewport()).findIndex(row => row.includes("atomic-commit"));
 		expect(chipRow).toBeGreaterThan(0);
 		term.sendInput(`\x1b[<0;5;${chipRow}M`);
+		term.sendInput(`\x1b[<0;5;${chipRow}m`);
 		await term.waitForRender();
 		expect(skillCard.expanded).toBe(false);
 
@@ -613,6 +622,7 @@ describe("inline click-to-focus geometry", () => {
 
 		// Send SGR click with mouse disabled
 		term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+		term.sendInput(`\x1b[<0;5;${screenRow + 1}m`);
 		await term.waitForRender();
 		expect(tool.expanded).toBe(false);
 	});
@@ -644,6 +654,7 @@ describe("inline click-to-focus geometry", () => {
 			const screenRow = viewport.findIndex(row => row.includes(marker));
 			expect(screenRow).toBeGreaterThanOrEqual(0);
 			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+			term.sendInput(`\x1b[<0;5;${screenRow + 1}m`);
 		};
 
 		await term.waitForRender(() =>
@@ -716,6 +727,7 @@ describe("inline click-to-focus geometry", () => {
 			const screenRow = viewport.findIndex(row => row.includes(marker));
 			expect(screenRow).toBeGreaterThanOrEqual(0);
 			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+			term.sendInput(`\x1b[<0;5;${screenRow + 1}m`);
 		};
 
 		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("alpha.ts")));
@@ -774,6 +786,7 @@ describe("inline click-to-focus geometry", () => {
 			const screenRow = viewport.findIndex(row => row.includes(marker));
 			expect(screenRow).toBeGreaterThanOrEqual(0);
 			term.sendInput(`\x1b[<0;5;${screenRow + 1}M`);
+			term.sendInput(`\x1b[<0;5;${screenRow + 1}m`);
 		};
 
 		// Collapsed by default: header shows "Read (2)" and summary rows show "first.ts" and "second.ts"
@@ -923,9 +936,11 @@ describe("inline click-to-focus geometry", () => {
 		expect(viewport[screenRow]).not.toContain("demo:open/7");
 		expect(viewport[screenRow]).toContain("the docs (https://example.com/docs)");
 
-		const click = (label: string) =>
+		const click = (label: string) => {
 			term.sendInput(`\x1b[<0;${viewport[screenRow]!.indexOf(label) + 2};${screenRow + 1}M`);
-		// A click on the web link raises nothing; the extension link's click reaches its extension.
+			term.sendInput(`\x1b[<0;${viewport[screenRow]!.indexOf(label) + 2};${screenRow + 1}m`);
+		};
+		// The extension link's click reaches its extension; the web link uses the system opener.
 		click("the docs");
 		click("the details");
 		await firstActivation;
@@ -1116,6 +1131,7 @@ describe("inline click-to-focus geometry", () => {
 		const viewport = plainRows(term.getViewport());
 		const screenRow = viewport.findIndex(row => row.includes("the details"));
 		term.sendInput(`\x1b[<0;${viewport[screenRow]!.indexOf("the details") + 2};${screenRow + 1}M`);
+		term.sendInput(`\x1b[<0;${viewport[screenRow]!.indexOf("the details") + 2};${screenRow + 1}m`);
 		await handled.promise;
 		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("OPENED")));
 		expect(plainRows(term.getViewport()).some(row => row.includes("Open OPENED now."))).toBe(true);
@@ -1283,6 +1299,7 @@ describe("inline click-to-focus geometry", () => {
 		const toolRowDisabled = plainRows(term.getViewport()).findIndex(row => row.includes("Bash"));
 		expect(toolRowDisabled).toBeGreaterThanOrEqual(0);
 		term.sendInput(`\x1b[<0;5;${toolRowDisabled + 1}M`);
+		term.sendInput(`\x1b[<0;5;${toolRowDisabled + 1}m`);
 		await term.waitForRender();
 		expect(tool.expanded).toBe(false);
 
@@ -1296,6 +1313,7 @@ describe("inline click-to-focus geometry", () => {
 			const row = rows.findIndex(line => line.includes(marker));
 			expect(row).toBeGreaterThanOrEqual(0);
 			term.sendInput(`\x1b[<0;5;${row + 1}M`);
+			term.sendInput(`\x1b[<0;5;${row + 1}m`);
 			mode.ui.renderNow();
 		};
 
@@ -1350,6 +1368,7 @@ describe("inline click-to-focus geometry", () => {
 		const linkRow = linkViewport.findIndex(row => row.includes("scrolled link"));
 		expect(linkRow).toBeGreaterThanOrEqual(0);
 		term.sendInput(`\x1b[<0;${linkViewport[linkRow]!.indexOf("scrolled link") + 2};${linkRow + 1}M`);
+		term.sendInput(`\x1b[<0;${linkViewport[linkRow]!.indexOf("scrolled link") + 2};${linkRow + 1}m`);
 		await firstActivation;
 		expect(activated).toEqual(["demo:scrolled/1"]);
 	});

@@ -2,8 +2,10 @@
  * Interactive mode for the coding agent.
  * Handles TUI rendering and user interaction, delegating business logic to AgentSession.
  */
+import { existsSync } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { type Agent, AgentBusyError, type AgentMessage, agentPauseGate, ThinkingLevel } from "@reverse/agent";
 import type { CompactionOutcome } from "@reverse/agent/compaction";
 import type { AssistantMessage, ImageContent, Model, Usage, UsageReport } from "@reverse/ai";
@@ -4249,20 +4251,73 @@ export class InteractiveMode implements InteractiveModeContext {
 		});
 	}
 
-	/** Raise `link_activate` for `url` on the viewed session's extension runner. */
-	#activateLink(url: string): boolean {
+	/**
+	 * Activate `url`: dispatch extension-owned schemes to the viewed session's extension runner,
+	 * or open safe `http(s):`, `file:`, and renderer-generated `vscode://file/` targets externally.
+	 */
+	#activateLink(url: string, fromMouse = false): boolean {
+		if (/[\x00-\x1f\x7f]/.test(url)) return false;
+		const colon = url.indexOf(":");
+		if (colon <= 0) return false;
+		const scheme = url.slice(0, colon).toLowerCase();
 		const runner = this.viewSession.extensionRunner;
-		if (!runner) return false;
-		// A focused subagent's runner is headless: hand its handler the UI drawing that transcript.
-		runner.emitLinkActivate(url, this.session.extensionRunner?.getUIContext()).catch((error: unknown) => {
-			logger.warn("link_activate dispatch failed", { url, error: String(error) });
-		});
+		if (runner?.getLinkSchemes().includes(scheme)) {
+			if (fromMouse && !this.#mouseCapture) return false;
+			// A focused subagent's runner is headless: hand its handler the UI drawing that transcript.
+			runner.emitLinkActivate(url, this.session.extensionRunner?.getUIContext()).catch((error: unknown) => {
+				logger.warn("link_activate dispatch failed", { url, error: String(error) });
+				this.showError(error instanceof Error ? error.message : String(error));
+			});
+			return true;
+		}
+		let parsed: URL;
+		try {
+			parsed = new URL(url);
+		} catch {
+			return false;
+		}
+		if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+			openPath(url);
+			return true;
+		}
+		let filePath: string;
+		if (parsed.protocol === "file:") {
+			if (parsed.search || parsed.hash) return false;
+			try {
+				filePath = fileURLToPath(parsed);
+			} catch {
+				return false;
+			}
+		} else if (
+			parsed.protocol === "vscode:" &&
+			parsed.hostname === "file" &&
+			!parsed.port &&
+			!parsed.username &&
+			!parsed.password &&
+			!parsed.search &&
+			!parsed.hash &&
+			parsed.pathname.startsWith("/")
+		) {
+			const rawPath = parsed.pathname.replace(/:\d+(?::\d+)?$/, "");
+			try {
+				filePath = fileURLToPath(new URL(`file://${rawPath}`));
+			} catch {
+				return false;
+			}
+		} else {
+			return false;
+		}
+		if (!existsSync(filePath)) {
+			this.showError(`File not found: ${filePath}`);
+			return true;
+		}
+		openPath(filePath);
 		return true;
 	}
 
 	activateViewportLink(index: number, col: number): boolean {
 		const url = this.composer.viewportLinkAt(index, col)?.url;
-		return url !== undefined && this.#activateLink(url);
+		return url !== undefined && this.#activateLink(url, true);
 	}
 
 	startLinkHints(): boolean {

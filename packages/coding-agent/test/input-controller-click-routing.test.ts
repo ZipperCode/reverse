@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { KeybindingsManager } from "@reverse/tui/app-keybindings";
+import { ContentSelection } from "@reverse/tui/prompt/content-selection";
 import { resetSettingsForTest, Settings, settings } from "@reverse/coding-agent/config/settings";
 import { PINNED_HUD_TOGGLE_ID } from "@reverse/coding-agent/task/output-manager";
 import { InputController } from "@reverse/coding-agent/modes/controllers/input-controller";
@@ -18,6 +19,7 @@ const EXPANDER_CLICK = `${ESC}[<0;5;3M`;
 function makeHarness(options?: { detailClickResult?: boolean; candidatesAtRow?: (index: number) => string[] }) {
 	const listeners: Array<(data: string) => { consume?: boolean; data?: string } | undefined> = [];
 	const focused: string[] = [];
+	const selection = new ContentSelection();
 	let toggled = 0;
 	let requestRenderCount = 0;
 	const routedDetailClicks: Array<{ index: number; col: number }> = [];
@@ -39,6 +41,10 @@ function makeHarness(options?: { detailClickResult?: boolean; candidatesAtRow?: 
 		composer: {
 			cancelTranscriptDrag: () => {},
 			handleTranscriptMouse: () => false,
+			transcriptViewportHeight: 5,
+			cancelContentSelection: () => selection.clear(),
+			handleContentMouse: (event: Parameters<ContentSelection["handle"]>[0], row: number) =>
+				selection.handle(event, row, ["row zero", "row one", "row two", "row three", "row four"], 80),
 		},
 		editor: {
 			getText: () => "",
@@ -75,9 +81,11 @@ function makeHarness(options?: { detailClickResult?: boolean; candidatesAtRow?: 
 	return {
 		click: (data: string = EXPANDER_CLICK) => {
 			let consumed: boolean | undefined;
-			for (const listener of listeners) {
-				const res = listener(data);
-				if (res?.consume) consumed = true;
+			for (const event of [data, data.replace(/M$/, "m")]) {
+				for (const listener of listeners) {
+					const res = listener(event);
+					if (res?.consume) consumed = true;
+				}
 			}
 			return consumed;
 		},

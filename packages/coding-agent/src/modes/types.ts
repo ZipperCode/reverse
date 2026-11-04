@@ -166,6 +166,8 @@ export interface InteractiveModeContext {
 		| "transcriptViewportHeight"
 		| "cancelTranscriptDrag"
 		| "handleTranscriptMouse"
+		| "cancelContentSelection"
+		| "handleContentMouse"
 	>;
 	chatContainer: TranscriptContainer;
 	/** `!`/`$` runs started while the agent streams, until {@link flushPendingBashComponents} moves them into the transcript. */
@@ -224,8 +226,8 @@ export interface InteractiveModeContext {
 	/** Route an ANSI left-click at a mutable-viewport line and column to detail targets (thinking, tool, read, skill). Returns true if consumed. */
 	routeViewportDetailClick(index: number, col: number, event?: SgrMouseEvent): boolean | DetailClickResult;
 	/**
-	 * Deliver a click at cell `col` of a mutable-viewport line to the extension owning the link
-	 * drawn there. Returns false when no extension link is under the click.
+	 * Activate a rendered web/file link at a viewport cell, or a registered extension link when
+	 * `tui.mouse` is enabled. Returns false when the cell has no supported link target.
 	 */
 	activateViewportLink(index: number, col: number): boolean;
 	/**

@@ -203,7 +203,7 @@ export const appearanceSettingsZhCN: Record<string, SettingTranslation> = {
 	"tui.mouse": {
 		label: "鼠标交互",
 		description:
-			"对话区始终支持滚轮。开启后可点击或悬停对话详情、子代理卡片和扩展链接；终端支持时按住 Shift 选择文本。",
+			"对话区始终支持滚轮和滚动条拖动。拖选文字后松开即可复制，点击网页链接或文件路径即可打开。开启此项可点击或悬停对话详情、子代理卡片和扩展链接；终端支持时按住 Shift 使用终端原生选择。",
 	},
 	"tui.tight": {
 		label: "紧凑布局",

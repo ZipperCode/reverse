@@ -542,7 +542,7 @@ export const cfgTuiMouse = register({
 		group: "Display",
 		label: "Mouse Interaction",
 		description:
-			"Transcript wheel scrolling is always enabled. Enable clicks and hover on transcript details, subagent cards, and extension links. Hold Shift for terminal text selection where supported.",
+			"Wheel scrolling and scrollbar dragging are always enabled. Drag text to select and copy on release; click web links or file paths to open them. Enable this setting for clicks and hover on transcript details, subagent cards, and extension links. Hold Shift for terminal-native selection where supported.",
 	},
 });
 

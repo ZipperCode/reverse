@@ -845,24 +845,51 @@ export class InputController {
 		if (!event) return undefined;
 		if (this.ctx.ui.nativeRendering || this.ctx.ui.hasOverlay() || this.ctx.ui.getFocused() !== this.ctx.editor) {
 			this.ctx.composer.cancelTranscriptDrag();
+			this.ctx.composer.cancelContentSelection();
 			return undefined;
 		}
 		const viewport = this.ctx.ui.getMutableViewport();
 		const row = event.row - viewport.top;
 		if (event.button & 64) {
 			this.ctx.composer.cancelTranscriptDrag();
+			this.ctx.composer.cancelContentSelection();
 			if (event.wheel !== null && !event.release && !event.motion && row >= 0 && row < viewport.length) {
 				this.ctx.composer.scrollTranscript(event.wheel * 3);
 				this.#lastHoverClickId = undefined;
 			}
-		} else if (this.ctx.composer.handleTranscriptMouse(event, row)) {
+			return { consume: true };
+		}
+		if (this.ctx.composer.handleTranscriptMouse(event, row)) {
+			this.ctx.composer.cancelContentSelection();
 			this.#lastHoverClickId = undefined;
 			return { consume: true };
-		} else if (cfgTuiMouse.get(this.ctx.settings)) {
-			if (event.motion) this.#updateHoverHighlight(event.row);
-			else if (event.leftClick && !this.#activateClickedLink(event.row, event.col)) {
-				this.#handleInlineLeftClick(event.row, event.col);
+		}
+		const content = this.ctx.composer.handleContentMouse(event, row);
+		if (content) {
+			if (content.copy !== undefined) {
+				const text = content.copy;
+				void Promise.try(() => copyToClipboard(text)).catch((error: unknown) => {
+					this.ctx.showWarning(`Copy failed: ${error instanceof Error ? error.message : String(error)}`);
+				});
+			} else if (content.click) {
+				if (
+					!this.#activateClickedLink(content.click.row, content.click.col) &&
+					cfgTuiMouse.get(this.ctx.settings)
+				) {
+					this.#handleInlineLeftClick(content.click.row, content.click.col);
+				}
 			}
+			return { consume: true };
+		}
+		if (event.motion) {
+			if (cfgTuiMouse.get(this.ctx.settings)) this.#updateHoverHighlight(event.row);
+		} else if (
+			event.leftClick &&
+			row >= this.ctx.composer.transcriptViewportHeight &&
+			!this.#activateClickedLink(row, event.col) &&
+			cfgTuiMouse.get(this.ctx.settings)
+		) {
+			this.#handleInlineLeftClick(row, event.col);
 		}
 		return { consume: true };
 	}
@@ -876,6 +903,9 @@ export class InputController {
 	 * push-to-talk) never reach this.
 	 */
 	#handleLinkHintInput(data: string): { consume?: boolean } | undefined {
+		if (!data.startsWith("\x1b[<")) {
+			this.ctx.composer.cancelContentSelection();
+		}
 		// Overlays and editor-area dialogs (ask, selectors, hook input) own the keyboard.
 		const editorFocused = () => !this.ctx.ui.hasOverlay() && this.ctx.ui.getFocused() === this.ctx.editor;
 		if (!this.ctx.linkHintsActive) {
@@ -927,10 +957,10 @@ export class InputController {
 		return local;
 	}
 
-	// A click on an extension-owned link goes to that extension instead of focusing an agent.
-	#activateClickedLink(screenRow: number, col: number): boolean {
-		const line = this.#viewportLine(screenRow);
-		return line !== undefined && this.ctx.activateViewportLink(line, col);
+	// A click on a viewport link opens/activates it instead of focusing an agent or toggling details.
+	#activateClickedLink(viewportRow: number, col: number): boolean {
+		const viewport = this.ctx.ui.getMutableViewport();
+		return viewportRow >= 0 && viewportRow < viewport.length && this.ctx.activateViewportLink(viewportRow, col);
 	}
 
 	/**
@@ -943,8 +973,10 @@ export class InputController {
 		this.#lastHoverClickId = undefined;
 	}
 
-	#handleInlineLeftClick(screenRow: number, col: number): void {
-		const candidates = this.#viewportCandidates(screenRow);
+	#handleInlineLeftClick(viewportRow: number, col: number): void {
+		const viewport = this.ctx.ui.getMutableViewport();
+		if (viewportRow < 0 || viewportRow >= viewport.length) return;
+		const candidates = this.ctx.resolveViewportClickCandidates(viewportRow);
 		if (candidates.length > 0) {
 			const refs = AgentRegistry.global().list();
 			const scoped = refs.filter(ref => candidates.includes(ref.id));
@@ -963,10 +995,7 @@ export class InputController {
 			}
 		}
 
-		const viewport = this.ctx.ui.getMutableViewport();
-		const local = screenRow - viewport.top;
-		if (viewport.length === 0 || local < 0 || local >= viewport.length) return;
-		const handled = this.ctx.routeViewportDetailClick?.(local, col);
+		const handled = this.ctx.routeViewportDetailClick?.(viewportRow, col);
 		if (handled) {
 			this.ctx.ui.requestRender();
 		}

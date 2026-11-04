@@ -4,6 +4,8 @@ import type { StatusLineComponent } from "../status-line/component";
 import { compositeLineAt } from "../render/composite";
 import { type ExtensionLinkLabel, extensionLinkLabels, linkHintTags } from "../render/extension-links";
 import type { StatusLineSession } from "../status-line/host";
+import { contentLinkAt } from "../render/content-links";
+import { ContentSelection, type ContentMouseResult } from "./content-selection";
 import { createStartupStatusLine, type StatusLineStartupData } from "../status-line/startup";
 import { ProcessTerminal, type Terminal } from "../terminal";
 import {
@@ -28,7 +30,7 @@ import { ensureThemeSync, getEditorTheme, theme } from "../theme/theme";
 
 import { type DetailClickResult, hasMouseRouter, type SgrMouseEvent } from "../mouse";
 import { TERMINAL } from "../terminal-capabilities";
-import { visibleWidth } from "../utils";
+import { sliceByColumn, visibleWidth } from "../utils";
 import { resolveEffectiveLocale, type SupportedLocale } from "@reverse/utils/i18n";
 import { tuiHint } from "../overlays/settings-defs";
 const DOUBLE_INTERRUPT_MS = 500;
@@ -318,6 +320,8 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 		  }
 		| undefined;
 	#transcriptDragging = false;
+	readonly #contentSelection = new ContentSelection();
+	#lastContentRows: string[] = [];
 	#getScrollLocale: () => SupportedLocale = () => resolveEffectiveLocale();
 	/** Click spans of the last `renderFrame` viewport, in viewport coordinates. */
 	#lastClickSpans: ViewportClickSpan[] = [];
@@ -487,6 +491,7 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 			this.ui.getFocused() !== this.editor
 		) {
 			this.cancelTranscriptDrag();
+			this.cancelContentSelection();
 		}
 		const geometry = {
 			width,
@@ -505,6 +510,8 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 			frame,
 		);
 		const history = [...window.rows, ...Array<string>(available - window.rows.length).fill("")];
+		this.#lastContentRows = [...history];
+		const contentWidth = width >= 2 ? width - 1 : width;
 		if (width >= 2 && available >= 2 && !(window.atStart && window.atEnd)) {
 			const thumb = Math.round(window.progress * (available - 1));
 			for (let row = 0; row < available; row++) {
@@ -536,12 +543,14 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 					length,
 					width,
 				);
+				this.#lastContentRows[row] = sliceByColumn(this.#lastContentRows[row]!, 0, start, true);
 				geometry.actions.push({ row, start, end: budget, ratio });
 			};
 			if (!window.atStart) paintJump(0, 0, `[↑ ${tuiHint("transcript.toTop", locale, "Go to top")}]`);
 			if (!window.atEnd)
 				paintJump(available - 1, 1, `[↓ ${tuiHint("transcript.toBottom", locale, "Jump to bottom")}]`);
 		}
+		this.#contentSelection.sync(this.#lastContentRows, contentWidth);
 		const mutable = [...history, ...visibleDock];
 		const spans: ViewportClickSpan[] = [];
 		for (const span of window.spans) {
@@ -572,7 +581,9 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 		this.#lastViewportRows = mutable;
 		this.#lastViewportWidth = width;
 		this.#syncLinkHints(mutable, width);
-		return { viewport: this.#paintLinkHints(this.#paintHoverBand(mutable, spans), width) };
+		return {
+			viewport: this.#contentSelection.paint(this.#paintLinkHints(this.#paintHoverBand(mutable, spans), width)),
+		};
 	}
 
 	get transcriptViewportHeight(): number {
@@ -580,12 +591,14 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 	}
 
 	scrollTranscript(rows: number): void {
+		this.cancelContentSelection();
 		this.#transcriptViewport.scrollBy(rows);
 		this.#hoveredClickId = undefined;
 		this.ui.requestRender();
 	}
 
 	scrollTranscriptToBottom(): void {
+		this.cancelContentSelection();
 		this.#transcriptViewport.scrollToBottom();
 		this.#hoveredClickId = undefined;
 		this.ui.requestRender();
@@ -597,6 +610,7 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 	}
 
 	scrollTranscriptToRatio(ratio: number): void {
+		this.cancelContentSelection();
 		this.#transcriptViewport.scrollToRatio(ratio);
 		this.#hoveredClickId = undefined;
 		this.ui.requestRender();
@@ -604,6 +618,17 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 
 	cancelTranscriptDrag(): void {
 		this.#transcriptDragging = false;
+	}
+
+	cancelContentSelection(): void {
+		if (this.#contentSelection.clear()) this.ui.requestRender();
+	}
+
+	handleContentMouse(event: SgrMouseEvent, viewportRow: number): ContentMouseResult | undefined {
+		const width = this.#lastViewportWidth >= 2 ? this.#lastViewportWidth - 1 : this.#lastViewportWidth;
+		const result = this.#contentSelection.handle(event, viewportRow, this.#lastContentRows, width);
+		if (result) this.ui.requestRender();
+		return result;
 	}
 
 	handleTranscriptMouse(event: SgrMouseEvent, viewportRow: number): boolean {
@@ -850,15 +875,14 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 		return routeViewportDetailClick(this.#lastDetailSpans, index, col, event);
 	}
 
-	/**
-	 * The extension-owned link label drawn at cell `col` of a mutable-viewport line, or `undefined`.
-	 * Only links whose scheme an extension registered match; see `extensionLinkLabels`.
-	 */
+	/** The rendered extension, web or file link at a viewport cell. */
 	viewportLinkAt(index: number, col: number): ViewportLink | undefined {
 		const line = this.#lastViewportRows[index];
 		if (line === undefined || col < 0) return undefined;
 		const label = extensionLinkLabels(line).find(label => col >= label.start && col < label.end);
-		return label && { url: label.url, row: index, start: label.start };
+		if (label) return { url: label.url, row: index, start: label.start };
+		const link = contentLinkAt(line, col);
+		return link && { ...link, row: index };
 	}
 
 	/**
@@ -1082,6 +1106,7 @@ export class Composer implements TerminalFrameProvider, NativeSurfaceProvider {
 	/** Stop a composer that has not transferred terminal ownership. */
 	stop(): void {
 		this.cancelTranscriptDrag();
+		this.cancelContentSelection();
 		if (!this.#started || this.#stopped || this.#transferred) return;
 		this.#welcome?.stopIntro();
 		this.#disposeStartupStatus();
