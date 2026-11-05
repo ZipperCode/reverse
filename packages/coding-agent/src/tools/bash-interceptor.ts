@@ -5,7 +5,7 @@
  * this interceptor provides helpful error messages directing them to use
  * the specialized tools instead.
  */
-import { extractFlatShellCommandSegments } from "./shell-tokenize";
+import { extractFlatShellCommandSegments, readShellWord } from "./shell-tokenize";
 import { type BashInterceptorRule, DEFAULT_BASH_INTERCEPTOR_RULES } from "../exec/settings";
 
 export interface InterceptionResult {
@@ -94,17 +94,113 @@ function withoutLeadingEnvironmentAssignments(command: string): string | null {
 	return commandWithoutAssignments.length > 0 ? commandWithoutAssignments : null;
 }
 
+/**
+ * Unwraps command invocation wrappers for bash interception:
+ * 1. `command [-p] [--]` wrapper
+ * 2. Standard executable paths: `/bin/<cmd>` or `/usr/bin/<cmd>`
+ * 3. Quoting or backslash-escaping on the first command word (e.g. `"grep"`, `'grep'`, `\grep`)
+ *
+ * Does not unwrap custom paths (e.g. `./custom/grep`), does not interpret eval/env/subshells,
+ * and preserves the original command for display.
+ * Returns the normalized equivalent command string if unwrapped, or null if no unwrapping occurred.
+ */
+export function unwrapCommandInvocation(command: string): string | null {
+	let current = command.trimStart();
+	if (current.length === 0) return null;
+
+	let unwrapped = false;
+	const firstWord = readShellWord(current);
+	if (!firstWord || firstWord === "unterminated") return null;
+
+	if (firstWord.value === "command") {
+		let rest = firstWord.rest;
+		while (rest.length > 0) {
+			const next = readShellWord(rest);
+			if (!next || next === "unterminated") return null;
+			if (next.value === "-p") {
+				rest = next.rest;
+			} else if (next.value === "--") {
+				rest = next.rest;
+				break;
+			} else if (next.value.startsWith("-")) {
+				// Unsupported flags for `command` (e.g. -v, -V) - do not unwrap
+				return null;
+			} else {
+				// Reached command name
+				break;
+			}
+		}
+		if (rest.length === 0) return null;
+		current = rest.trimStart();
+		unwrapped = true;
+	}
+
+	const cmdWord = readShellWord(current);
+	if (!cmdWord || cmdWord === "unterminated") return null;
+
+	let baseName = cmdWord.value;
+	let isStandardPath = false;
+
+	if (baseName.startsWith("/bin/") || baseName.startsWith("\\bin\\")) {
+		const sub = baseName.slice(5);
+		if (sub.length > 0 && !sub.includes("/") && !sub.includes("\\")) {
+			baseName = sub;
+			isStandardPath = true;
+		}
+	} else if (baseName.startsWith("/usr/bin/") || baseName.startsWith("\\usr\\bin\\")) {
+		const sub = baseName.slice(9);
+		if (sub.length > 0 && !sub.includes("/") && !sub.includes("\\")) {
+			baseName = sub;
+			isStandardPath = true;
+		}
+	}
+
+	// Do not treat custom or non-standard paths (e.g. ./custom/grep, /opt/bin/grep) as standard commands
+	if (!isStandardPath && (cmdWord.value.includes("/") || cmdWord.value.includes("\\"))) {
+		return null;
+	}
+
+	// Check if the command word in `current` was quoted or escaped
+	const isBareWord =
+		current.startsWith(baseName) &&
+		(current.length === baseName.length || /[\s\t\n\r]/.test(current[baseName.length]));
+	const isQuotedOrEscaped = !isBareWord;
+
+	if (!unwrapped && !isStandardPath && !isQuotedOrEscaped) {
+		return null;
+	}
+
+	return cmdWord.rest.length > 0 ? `${baseName} ${cmdWord.rest}` : baseName;
+}
+
 function interceptionCandidates(command: string): string[] {
-	const candidates = [command.trim()];
+	const candidates: string[] = [];
+	const seen = new Set<string>();
+
+	const addCandidate = (text: string | null | undefined) => {
+		if (!text) return;
+		const trimmed = text.trim();
+		if (trimmed.length === 0 || seen.has(trimmed)) return;
+		seen.add(trimmed);
+		candidates.push(trimmed);
+
+		const unwrapped = unwrapCommandInvocation(trimmed);
+		if (unwrapped && !seen.has(unwrapped)) {
+			seen.add(unwrapped);
+			candidates.push(unwrapped);
+		}
+	};
+
+	addCandidate(command);
 	for (const segment of extractFlatShellCommandSegments(command)) {
 		// A segment that consumes the previous stage's stdout via `|` reads piped
 		// stdin, which no path-based dedicated tool (read/grep/glob) — nor any
 		// other dedicated tool — can replace, so it is not an interception
 		// candidate. Standalone and first-stage commands still match.
 		if (segment.pipedStdin) continue;
-		candidates.push(segment.text);
+		addCandidate(segment.text);
 		const withoutAssignments = withoutLeadingEnvironmentAssignments(segment.text);
-		if (withoutAssignments) candidates.push(withoutAssignments);
+		if (withoutAssignments) addCandidate(withoutAssignments);
 	}
 	return candidates;
 }

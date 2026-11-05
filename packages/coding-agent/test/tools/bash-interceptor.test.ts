@@ -353,6 +353,117 @@ describe("default grep rule and pipeline stdin", () => {
 			checkBashInterception("cat log | tr a b && grep err file", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block,
 		).toBe(true);
 	});
+
+	it("blocks search commands wrapped with command, standard paths, or quotes and escapes", () => {
+		expect(checkBashInterception("command grep pattern path", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(
+			true,
+		);
+		expect(checkBashInterception("command -p grep pattern path", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(
+			true,
+		);
+		expect(checkBashInterception("command -- grep pattern path", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(
+			true,
+		);
+		expect(
+			checkBashInterception("command -p -- grep pattern path", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block,
+		).toBe(true);
+		expect(checkBashInterception("/usr/bin/grep pattern path", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(
+			true,
+		);
+		expect(checkBashInterception("/bin/grep pattern path", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(true);
+		expect(checkBashInterception('"/usr/bin/grep" pattern path', tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(
+			true,
+		);
+		expect(checkBashInterception('"grep" pattern path', tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(true);
+		expect(checkBashInterception("'grep' pattern path", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(true);
+		expect(checkBashInterception("\\grep pattern path", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(true);
+		expect(checkBashInterception('"rg" pattern path', tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(true);
+		expect(
+			checkBashInterception('cd src && command /usr/bin/"grep" pattern path', tools, DEFAULT_BASH_INTERCEPTOR_RULES)
+				.block,
+		).toBe(true);
+	});
+
+	it("handles quoted patterns and paths containing spaces", () => {
+		expect(
+			checkBashInterception(
+				'command grep "pattern with spaces" "path with spaces/file.txt"',
+				tools,
+				DEFAULT_BASH_INTERCEPTOR_RULES,
+			).block,
+		).toBe(true);
+		expect(
+			checkBashInterception(
+				'/usr/bin/grep -r "pattern with spaces" "dir with spaces"',
+				tools,
+				DEFAULT_BASH_INTERCEPTOR_RULES,
+			).block,
+		).toBe(true);
+	});
+
+	it("preserves pass-through for downstream pipelines, device CLIs, literals, custom paths, and complex syntax", () => {
+		expect(checkBashInterception("adb shell grep pattern path", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(
+			false,
+		);
+		expect(
+			checkBashInterception("adb shell /usr/bin/grep pattern path", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block,
+		).toBe(false);
+		expect(
+			checkBashInterception('adb shell "command grep pattern path"', tools, DEFAULT_BASH_INTERCEPTOR_RULES).block,
+		).toBe(false);
+		expect(
+			checkBashInterception("adb logcat | /usr/bin/grep pattern", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block,
+		).toBe(false);
+		expect(checkBashInterception("echo 123 | command grep 123", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(
+			false,
+		);
+		expect(checkBashInterception("printf 'grep pattern path\\n'", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(
+			false,
+		);
+		expect(checkBashInterception('echo "grep pattern path"', tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(
+			false,
+		);
+		expect(checkBashInterception("./custom/grep pattern path", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(
+			false,
+		);
+		expect(checkBashInterception("./grep pattern path", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(false);
+		expect(
+			checkBashInterception("/opt/custom/bin/grep pattern path", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block,
+		).toBe(false);
+		expect(
+			checkBashInterception("command ./custom/grep pattern path", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block,
+		).toBe(false);
+		expect(checkBashInterception("command -v grep", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(false);
+		expect(checkBashInterception("(cd src && grep pattern path)", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(
+			false,
+		);
+		expect(checkBashInterception('eval "grep pattern path"', tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(
+			false,
+		);
+		expect(checkBashInterception("env grep pattern path", tools, DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(false);
+	});
+
+	it("does not block wrapped commands when the dedicated tool is unavailable", () => {
+		expect(checkBashInterception("command grep pattern path", [], DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(false);
+		expect(checkBashInterception("/usr/bin/grep pattern path", [], DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(false);
+		expect(checkBashInterception('"grep" pattern path', ["read"], DEFAULT_BASH_INTERCEPTOR_RULES).block).toBe(false);
+	});
+
+	it("blocks other dedicated tools wrapped with command or standard paths", () => {
+		expect(
+			checkBashInterception(
+				'command /usr/bin/find "path with spaces" -name "*.ts"',
+				["glob"],
+				DEFAULT_BASH_INTERCEPTOR_RULES,
+			).block,
+		).toBe(true);
+		expect(
+			checkBashInterception('command cat "file with spaces.txt"', ["read"], DEFAULT_BASH_INTERCEPTOR_RULES).block,
+		).toBe(true);
+		expect(
+			checkBashInterception("command sed -i 's/foo/bar/' file.txt", ["edit"], DEFAULT_BASH_INTERCEPTOR_RULES).block,
+		).toBe(true);
+	});
 });
 
 describe("default bash service rules", () => {

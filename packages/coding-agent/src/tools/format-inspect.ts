@@ -2415,7 +2415,7 @@ export class FormatInspectTool implements AgentTool<typeof formatInspectSchema, 
 			...generatedSources.map(
 				g => `  • ${g.module_name} (${g.class_name}): ${g.path} (sha256: ${g.sha256.slice(0, 16)}...)`,
 			),
-			`Record Hint: Pass output_paths: ${JSON.stringify(relativeOutputPaths)} when calling reverse_workspace(action: "record").`,
+			`Record Hint: 收齐本次结果后仅对 running run 记录一次 (output_paths: ${JSON.stringify(relativeOutputPaths)})；若当前 run 已终结，请先调用 reverse_workspace(action: "begin") 创建新 run，切勿重复 record。`,
 		];
 
 		return {
@@ -3347,7 +3347,7 @@ export class FormatInspectTool implements AgentTool<typeof formatInspectSchema, 
 				? [`Next Experiment Suggestions:`, ...dedupedSuggestions.map(s => `  → ${s}`)]
 				: []),
 			`Validation Report (mode 0600): ${reportTarget.relativePath}`,
-			`Record Hint: Pass output_paths: ${JSON.stringify([reportTarget.relativePath])} when calling reverse_workspace(action: "record").`,
+			`Record Hint: 收齐本次结果后仅对 running run 记录一次 (output_paths: ${JSON.stringify([reportTarget.relativePath])})；若当前 run 已终结，请先调用 reverse_workspace(action: "begin") 创建新 run，切勿重复 record。`,
 		];
 
 		return {

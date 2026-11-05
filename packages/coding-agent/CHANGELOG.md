@@ -51,6 +51,12 @@
 
 ### Fixed
 
+- 忽略 Bun 编译缓存与旧版 HTML 导出生成文件，避免本地构建产物混入提交。
+- 明确实验 `record` 仅用于一次性终结；已终结记录发生冲突时返回结构化原因及 `recall` / `begin` 恢复指引，保留原始证据与相同参数的幂等重试。
+- 有可执行待办时继续推进，不再将助手末尾询问当作等待许可；全部受阻最多纠偏一次，正常收尾生成可见且持久化的交付收据，区分阻塞、未满足、代理证据与验收通过。
+- 交付收据只复核本轮触达的领域工作流，重查证据账本与磁盘漂移，避免历史列表污染、同轮状态漏更新及收据意外启动新推理。
+- 独立任务在目标和归属明确后尽早拆分；已持久化的 Scout 结果只注入紧凑摘要和证据入口，完整报告仍可按字段读取。
+- 启用检索拦截时识别 `command grep`、标准路径和引号首词，保留管道输入、设备命令及自定义程序兜底，不改变默认开关。
 - Preserved interrupted-turn retry and queued extension-message persistence during the native-resume cutover; bridged terminal results stop after the enclosing tool settles instead of installing a permanent model-call gate.
 - Kept nested device dispatch from consuming its outer tool's TTSR context, and preserved rejection of interrupting bridged rules while allowing normalized task guard results.
 - Separated ordinary task and seance schemas, normalized inert selector placeholders without erasing populated nested overrides, and blocked repeated deterministic dispatch failures before execution across native, eval, and `xd://` paths; corrected arguments, preconditions, and fresh prompts restore progress.

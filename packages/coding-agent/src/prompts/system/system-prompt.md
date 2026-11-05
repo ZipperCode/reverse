@@ -203,10 +203,11 @@ Delegation preferred. Once design settles, SHOULD fan substantial work to `{{too
 {{/if}}
 {{/if}}
 {{#if inlineFirstDelegation}}
-Inline first. Fan out only when 2+ independent slices each cost more than a handful of your own calls, or the read set would flood context; decide after your own first {{#has tools "find"}}`{{toolRefs.find}}`/{{/has}}`grep`/`read`, never before it.
-- NEVER open with a scout. Scope with {{#has tools "find"}}`{{toolRefs.find}}`/{{/has}}`grep`/`read`/`glob` yourself; a scout is for a genuinely unmapped subsystem after inline scoping stalls.
-- NEVER delegate one slice. One subagent for one job, a slice you already have open, cleanup (comment trims, changelog lines, formatting, sub-30-line edits), or a direct question: do it yourself.
-- NEVER babysit. Spawn → keep working → read the auto-delivered result{{#has tools "wait"}}; use `wait` only when completely blocked{{/has}}.
+先确认目标、共同前置条件和文件归属；独立切面明确后立即委派，不等主线程把整个子系统查完。只有真实依赖阻止并发时才串行。
+- 大目录或多模块探索可先派一个只读 scout，主线程同时推进另一项独立工作；已有两个以上独立切面时，一次批量派发。
+- Scout 负责定位与证据索引；需要执行、实现或深度推演的切面交给通用任务，主线程保留目标判断、整合与最终验证。
+- 已知的小范围单文件修正、清理或直接回答留在主线程，不为凑并发拆任务。
+- 派发后继续自己的独立工作；结果自动交付，只有完全受依赖阻塞时才等待，不轮询进度。
 {{else}}
 - Map unknown code via `{{toolRefs.task}}`, not reading file after file yourself. NEVER abandon phases under scope pressure: delegate, don't shrink.
 {{/if}}
@@ -215,6 +216,7 @@ Inline first. Fan out only when 2+ independent slices each cost more than a hand
 - Before spawning, map slices/shared contracts; user-enumerated 2+ self-contained runnable slices exempt. NEVER outsource top-level plan; slice design/competing plans allowed.
 - Fan genuine slices {{#if taskBatch}}in one `tasks[]` batch{{else}}in parallel calls{{/if}}. NEVER pad, serialize independent work, or spawn then idle{{#if scoutAvailable}}{{#when delegationBias "==" "eager"}}; one read-only scout while working allowed{{/when}}{{/if}}.
 - Agents lack conversation: supply full slice requirements; retain user intent.
+- 先消费子任务的紧凑结论、证据位置与未决项；仅在具体证据缺口需要时按字段读取完整报告，不默认把所有长报告重新灌回主上下文。
 {{#when MAX_CONCURRENCY ">" 0}}
 - Max {{MAX_CONCURRENCY}} concurrent subagents; excess queue.
 {{/when}}
@@ -332,6 +334,8 @@ Inviolable.
 <yielding>
 Before yielding: all affected callsites/tests/docs updated or intentionally unchanged; output/evidence requirements satisfied.
 Before blocked: ensure info unreachable via tools/context; one failed check ≠ blocked. Finish reachable work; state exactly missing and tried.
+- 计划仍有可执行项时继续推进，不以“是否继续”交还控制权。确实缺少用户决策、授权或外部环境时，将受影响项标记为 blocked 并记录具体原因，其他独立项照常推进。
+- blocked、代理观测和仅构建成功均不是目标验收通过；最终交付必须列出实际满足的条件、未通过项与证据位置，保留运行时验收收据。
 </yielding>
 
 <draft-discipline>

@@ -23,13 +23,17 @@ import {
 	type AnalysisRunPaths,
 	type AnalysisRunRecord,
 	type AnalysisRunRecall,
+	type RecordConflictRecovery,
+	isRecordConflictRecovery,
 } from "../reverse-workspace";
+
+export type { RecordConflictRecovery };
 
 const reverseWorkspaceSchema = type({
 	action: type
 		.enumerated("export", "status", "manifest", "clean", "begin", "record", "recall")
 		.describe(
-			"Workspace action: export (write standardized .reverse/ workspace), status (inspect .reverse/ workspace integrity and layout), manifest (read manifest.json), clean (safely remove dump files while preserving reports), begin (allocate active experiment run directory and record input hashes), record (finalize experiment run and link artifacts to workflow step), recall (search prior project experiment runs)",
+			"Workspace action: export (write standardized .reverse/ workspace), status (inspect .reverse/ workspace integrity and layout), manifest (read manifest.json), clean (safely remove dump files while preserving reports), begin (分配实验运行目录并记录输入哈希；开展新实验前必须调用), record (终结实验记录并关联步骤产物引用；已终结 run 不可追加产物或改写摘要，开展新实验请先 begin), recall (只读检索项目历史实验记录)",
 		),
 	"workflow_id?": type("string").describe(
 		"Workflow identifier (required for begin/record; optional for export/status/manifest/clean/recall)",
@@ -46,7 +50,9 @@ const reverseWorkspaceSchema = type({
 	"include_protected?": type("boolean").describe(
 		"Request deletion of protected artifacts. Requires explicit confirmation decision via available approval not free boolean.",
 	),
-	"run_id?": type("string").describe("Experiment run identifier (required for record; optional for begin)"),
+	"run_id?": type("string").describe(
+		"实验运行标识符（record 必填；begin 可选）。record 仅对处于 running 状态的 run 生效，已终结的 run 禁止再次追加产物或改写摘要。",
+	),
 	"step_id?": type("string").describe(
 		"Workflow step identifier (required for begin; optional verification for record)",
 	),
@@ -59,13 +65,13 @@ const reverseWorkspaceSchema = type({
 		"Script file paths (existing reused project scripts at begin, or run-local scripts at record)",
 	),
 	"output_paths?": type("string[]").describe(
-		"Output artifact file paths generated inside the run directory (required for succeeded record)",
+		"实验在当前 run 目录下生成的产物文件路径（exit_code 为 0 时必填）。收齐全部产物后仅调用一次 record 终结，已终结 run 不接收追加产物。",
 	),
 	"exit_code?": type("number.integer").describe(
 		"Process exit code for experiment run (required for record; 0 = succeeded)",
 	),
 	"summary?": type("string").describe(
-		"Empirical result or error summary for the experiment run (required for record)",
+		"实验结果或失败原因摘要（record 必填）。已终结 run 禁止改写摘要。",
 	),
 	"evidence_ids?": type("string[]").describe("Existing evidence ledger IDs associated with this experiment run"),
 	"query?": type("string").describe(
@@ -96,6 +102,7 @@ export interface ReverseWorkspaceDetails {
 	recent_runs?: AnalysisRunRecall[];
 	recalled_runs?: AnalysisRunRecall[];
 	reusable_script_paths?: string[];
+	recovery?: RecordConflictRecovery;
 }
 
 export class ReverseWorkspaceTool implements AgentTool<typeof reverseWorkspaceSchema, ReverseWorkspaceDetails> {
@@ -416,6 +423,7 @@ export class ReverseWorkspaceTool implements AgentTool<typeof reverseWorkspaceSc
 					`- **Pre-Existing Scripts**: ${beginRes.run.scripts.length}`,
 					`- **Prior Same-Target Runs**: ${beginRes.recent_runs.length}`,
 					`- **Reusable Verified Scripts**: ${beginRes.reusable_script_paths.length}`,
+					`- **Lifecycle**: 状态为 \`running\`。请在 run 目录下完成实验并生成全部产物，收齐后仅调用一次 \`record\` 终结；严禁在此 run 终结后重复调用 record 追加产物。`,
 				];
 
 				if (beginRes.reusable_script_paths.length > 0) {
@@ -478,52 +486,72 @@ export class ReverseWorkspaceTool implements AgentTool<typeof reverseWorkspaceSc
 
 				const workflowStore = new ReverseWorkflowStore({ repositoryRoot: projectDir });
 				const evidenceStore = new EvidenceStore({ repositoryRoot: projectDir });
-				const recordRes = await recordAnalysisRun({
-					projectDir,
-					workspaceDir: workspacePath,
-					workflowId,
-					runId: params.run_id,
-					exitCode: params.exit_code,
-					summary: params.summary,
-					stepId: params.step_id,
-					purpose: params.purpose,
-					command: params.command,
-					inputs: params.inputs,
-					scriptPaths: params.script_paths,
-					outputPaths: params.output_paths,
-					evidenceIds: params.evidence_ids,
-					workflowStore,
-					evidenceStore,
-				});
+				try {
+					const recordRes = await recordAnalysisRun({
+						projectDir,
+						workspaceDir: workspacePath,
+						workflowId,
+						runId: params.run_id,
+						exitCode: params.exit_code,
+						summary: params.summary,
+						stepId: params.step_id,
+						purpose: params.purpose,
+						command: params.command,
+						inputs: params.inputs,
+						scriptPaths: params.script_paths,
+						outputPaths: params.output_paths,
+						evidenceIds: params.evidence_ids,
+						workflowStore,
+						evidenceStore,
+					});
 
-				const lines = [
-					`# Recorded Experiment Run: \`${recordRes.run_id}\` (${recordRes.run.status})`,
-					"",
-					`- **Workflow**: \`${recordRes.workflow_id}\` (step \`${recordRes.step_id}\`)`,
-					`- **Status**: \`${recordRes.run.status}\` (exit code ${recordRes.run.exit_code})`,
-					`- **Summary**: ${recordRes.run.summary}`,
-					`- **Run Metadata**: \`${recordRes.paths.relative.run_json}\``,
-					`- **Scripts Recorded**: ${recordRes.run.scripts.length}`,
-					`- **Outputs Recorded**: ${recordRes.run.outputs.length}`,
-					`- **Linked Workflow Artifact Refs**: ${recordRes.artifact_refs.length}`,
-				];
+					const lines = [
+						`# Recorded Experiment Run: \`${recordRes.run_id}\` (${recordRes.run.status})`,
+						"",
+						`- **Workflow**: \`${recordRes.workflow_id}\` (step \`${recordRes.step_id}\`)`,
+						`- **Status**: \`${recordRes.run.status}\` (exit code ${recordRes.run.exit_code})`,
+						`- **Summary**: ${recordRes.run.summary}`,
+						`- **Run Metadata**: \`${recordRes.paths.relative.run_json}\``,
+						`- **Scripts Recorded**: ${recordRes.run.scripts.length}`,
+						`- **Outputs Recorded**: ${recordRes.run.outputs.length}`,
+						`- **Linked Workflow Artifact Refs**: ${recordRes.artifact_refs.length}`,
+						`- **Lifecycle**: \`finalized\`（已终结归档，不可追加产物或修改摘要/参数）。`,
+						`- **Next Steps**: 如需查阅历史实验请使用只读 \`recall\`；如需验证新假设或开展新实验，请调用 \`begin\` 创建新 run，切勿复用此 run_id。`,
+					];
 
-				return {
-					content: [{ type: "text", text: lines.join("\n") }],
-					details: {
-						action: "record",
-						workspace_dir: recordRes.workspace_dir,
-						workflow_id: recordRes.workflow_id,
-						step_id: recordRes.step_id,
-						run_id: recordRes.run_id,
-						run_dir: recordRes.run_dir,
-						relative_run_dir: recordRes.relative_run_dir,
-						paths: recordRes.paths,
-						run: recordRes.run,
-						artifact_refs: recordRes.artifact_refs,
-						idempotent_retry: recordRes.idempotent_retry,
-					},
-				};
+					return {
+						content: [{ type: "text", text: lines.join("\n") }],
+						details: {
+							action: "record",
+							workspace_dir: recordRes.workspace_dir,
+							workflow_id: recordRes.workflow_id,
+							step_id: recordRes.step_id,
+							run_id: recordRes.run_id,
+							run_dir: recordRes.run_dir,
+							relative_run_dir: recordRes.relative_run_dir,
+							paths: recordRes.paths,
+							run: recordRes.run,
+							artifact_refs: recordRes.artifact_refs,
+							idempotent_retry: recordRes.idempotent_retry,
+						},
+					};
+				} catch (err) {
+					if (err instanceof ToolError && isRecordConflictRecovery(err.context)) {
+						return {
+							content: [{ type: "text", text: err.render() }],
+							isError: true,
+							details: {
+								action: "record",
+								workspace_dir: workspacePath,
+								workflow_id: workflowId,
+								run_id: params.run_id,
+								step_id: err.context.stepId,
+								recovery: err.context,
+							},
+						};
+					}
+					throw err;
+				}
 			}
 
 			case "recall": {

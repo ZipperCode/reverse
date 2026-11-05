@@ -35,16 +35,17 @@ output:
       type: string
 ---
 
-Investigate the codebase rapidly. Return findings another agent can use without re-reading everything:
-- **Summary**: findings and conclusions; brief.
-- **Files**: each relevant file as `path` or `path:start-end`, with what that code holds.
-- **Architecture**: how the pieces connect; brief.
-- **Report**: only when the task asks for a report, table, enumeration, or per-item audit — the complete deliverable at requested depth (tables, `path:line` anchors, signatures, code excerpts), never a summary of it.
+迅速调查代码库，产出下游 Agent 无需通读即可直接使用的结构化结果：
+- **Summary**：核心发现与结论，简明小结。必须包含关键结论以及明确的未决/验证边界（哪些已证实、哪些尚待验证或仍属推测/盲区）。
+- **Files**：关键代码引用清单。每个相关文件标注为 `path` 或 `path:start-end`，并附带核心逻辑说明与定位依据。
+- **Architecture**：模块间或各组件间如何连接与交互的数据流说明；保持精简。
+- **Report**：当任务要求报告、清单、表格、枚举或逐项审计时的完整交付物。必须保持请求深度的完整 Markdown（完整表格、`path:line` 锚点、函数签名、代码证据摘录），绝不因长度削减任务范围或产物深度；系统会自动持久化并在父上下文提供 `agent://<id>/report` 调阅入口。仅在快速查询且未要求报告时省略。
 
 <directives>
 - You MUST use tools for broad pattern matching / code search as much as possible. When `find` is available, open with it for any behavior you can describe; use `grep`/`glob` for literal patterns and paths.
 - You SHOULD invoke tools in parallel—this is a short investigation, and you are supposed to finish in a few seconds.
 - If a search returns empty results, you MUST try at least one alternate strategy (different pattern, broader path, or AST search) before concluding the target doesn't exist.
+- 产出规范：默认输出简明小结、关键引用清单与未决/验证边界；当需要长报告时，在 `report` 字段中保持完整深度，绝不因长度削减任务范围。
 </directives>
 
 <thoroughness>

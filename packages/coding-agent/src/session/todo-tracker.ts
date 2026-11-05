@@ -1,5 +1,5 @@
 import type { Agent, AgentMessage, AgentTool } from "@reverse/agent";
-import type { AssistantMessage, Message, Model, TextContent, ToolChoice } from "@reverse/ai";
+import type { Message, Model, ToolChoice } from "@reverse/ai";
 import { isRecord, logger, prompt, stringProperty } from "@reverse/utils";
 import type { Settings } from "../config/settings";
 import eagerTaskPrompt from "../prompts/system/eager-task.md" with { type: "text" };
@@ -45,46 +45,6 @@ const MUTATING_TOOLS: Record<string, true> = {
 const MID_RUN_NUDGE_MESSAGE_TYPE = "mid-run-todo-nudge";
 /** Message type of the hidden first-turn reminder {@link TodoTracker.createEagerTodoPrelude} builds. */
 export const EAGER_TODO_PRELUDE_MESSAGE_TYPE = "eager-todo-prelude";
-const MARKDOWN_PROMPT_PREFIX_RE = /^(?:>\s*)?(?:(?:[-*+]|\d+[.)])\s+)*/;
-const PROMPT_LABEL_RE = /^(?:q(?:uestion)?|ask)\s*\d*\s*[:.)-]\s*/i;
-const INLINE_EMPHASIS_RE = /(\*\*|__)(.*?)\1/g;
-const OPTION_LINE_RE = /^(?:[-*+]|\d+[.)])\s+\S/;
-const RECOMMENDATION_RE = /^(?:i(?:'d| would)?\s+recommend|(?:my\s+)?recommendation)\b/i;
-const CHOICE_CONFIRMATION_RE = /^(?:go|proceed|continue|stick)\s+with\b/i;
-const QUESTION_PROMPT_RE =
-	/^(?:what|which|when|where|why|how|who|whom|whose|do|does|did|can|could|would|will|should|is|are|am|may|shall)\b/i;
-const USER_DIRECTED_PROMPT_RE = /\b(?:you|your|we|our)\b/i;
-const ADDRESSEE_RE = /\b(?:you|your)\b/i;
-// Imperatives ("tell me", "message me") and conditional permission ("If you confirm, I'll…").
-const USER_RESPONSE_CUE_RE =
-	/^(?:please\s+)?(?:confirm|reply|choose|pick|decide|advise|answer|approve)\b|^(?:please\s+)?(?:let\s+me\s+know|(?:tell|message|ping)\s+me)\b|^(?:if|once|when)\s+you\s+(?:confirm|approve|agree|allow|okay|ok|give)\b/i;
-// Strip a connective only before an explicit address/permission cue; bare response
-// words can be nouns ("Finally, answer validation is complete.").
-const LEADING_CONNECTIVE_RE =
-	/^(?:and|or|so|then|also|otherwise|alternatively|separately|finally)\b,?\s*(?=(?:please\b|let\s+me\s+know\b|(?:tell|message|ping)\s+me\b|(?:if|once|when)\s+you\b))/i;
-// Western terminators need trailing whitespace (so `foo?: string` stays whole); CJK ones do not.
-const SENTENCE_BREAK_RE = /(?<=[.!?…])\s+|(?<=[。！？])/;
-/**
- * A trailing question mark is the universal signal that a line is a question, but
- * the English word/pronoun gates above exist to filter incidental "?" out of prose
- * (e.g. a TypeScript `foo?: string` tail). Non-English text has no cheap word list,
- * yet any non-ASCII character in a "?"/"？"-terminated line reliably marks it as
- * genuine prose — CJK/Japanese/Korean, Spanish `¿…?`, accented Latin — so treat it
- * as a real user-directed question. Fixes non-Latin prompts going undetected (#7803).
- */
-const NON_ASCII_TEXT_RE = /[^\x00-\x7F]/;
-
-// A question wrapped whole in italics (`*…*`, `_…_`) — or the `*…*` that
-// INLINE_EMPHASIS_RE leaves of `***…***` — must still match the ^-anchored
-// QUESTION_PROMPT_RE. Strikethrough is deliberately absent: `~~…~~` marks the
-// author as having discarded the span, so unwrapping it would promote a retracted
-// question back to a live one and idle the session waiting for an answer nobody is going to give.
-const WRAPPED_EMPHASIS_RE = /^(\*\*\*|\*\*|\*|___|__|_)([\s\S]+)\1$/;
-
-interface PromptLine {
-	text: string;
-	hadPromptLabel: boolean;
-}
 
 /** Capabilities the todo tracker borrows from its owning session. */
 export interface TodoTrackerHost {
@@ -134,7 +94,8 @@ export class TodoTracker {
 	#callReservations = new Map<string, ToolCallReservation>();
 	#recordedCallIds = new Set<string>();
 	#recentExecutions: ObservedToolExecutionResult[] = [];
-
+	#allBlockedReminderSent = false;
+	#touchedWorkflowIds = new Set<string>();
 	constructor(host: TodoTrackerHost) {
 		this.#host = host;
 	}
@@ -207,6 +168,35 @@ export class TodoTracker {
 		this.#mutationsSinceLastTouch = 0;
 		this.#midRunNudgeCount = 0;
 		this.#callReservations.clear();
+		this.#allBlockedReminderSent = false;
+		this.#touchedWorkflowIds.clear();
+	}
+
+	/** Records an active workflow ID touched during the current prompt cycle. */
+	recordTouchedWorkflowId(id: string): void {
+		if (typeof id === "string" && id.trim().length > 0) {
+			this.#touchedWorkflowIds.add(id.trim());
+		}
+	}
+
+	/** Returns workflow IDs touched in the current prompt cycle (reconstructing from recent branch if empty). */
+	getTouchedWorkflowIds(): string[] {
+		if (this.#touchedWorkflowIds.size > 0) {
+			return Array.from(this.#touchedWorkflowIds);
+		}
+		const branch = this.#host.sessionManager.getBranch();
+		for (let i = branch.length - 1; i >= 0; i--) {
+			const entry = branch[i];
+			if (entry.type === "message") {
+				if (entry.message.role === "user") break;
+				if (entry.message.role === "toolResult" && entry.message.isError !== true && entry.message.details) {
+					for (const id of extractWorkflowIdsFromDetails(entry.message.details, entry.message.toolName)) {
+						this.#touchedWorkflowIds.add(id);
+					}
+				}
+			}
+		}
+		return Array.from(this.#touchedWorkflowIds);
 	}
 
 	/**
@@ -253,6 +243,11 @@ export class TodoTracker {
 			this.#mutationsSinceLastTouch++;
 		}
 		this.#reminderAwaitingProgress = false;
+		if (!isError && result.details) {
+			for (const wfId of extractWorkflowIdsFromDetails(result.details, reservation.toolName)) {
+				this.#touchedWorkflowIds.add(wfId);
+			}
+		}
 		this.#recordObservedToolOutcome({
 			toolCallId,
 			toolName: reservation.toolName,
@@ -285,6 +280,11 @@ export class TodoTracker {
 			this.#mutationsSinceLastTouch++;
 		}
 		this.#reminderAwaitingProgress = false;
+		if (!isError && message?.details) {
+			for (const wfId of extractWorkflowIdsFromDetails(message.details, message.toolName ?? toolName)) {
+				this.#touchedWorkflowIds.add(wfId);
+			}
+		}
 		if (toolName === "todo" || !message) return;
 
 		const toolCallId = typeof message.toolCallId === "string" ? message.toolCallId : undefined;
@@ -396,10 +396,14 @@ export class TodoTracker {
 		return nudges;
 	}
 
-	/** Checks a terminal assistant turn and schedules continuation for incomplete todos. */
-	async checkCompletion(message: AssistantMessage): Promise<boolean> {
+	/** 根据待办状态安排有界续推，不依赖助手正文。 */
+	async checkCompletion(): Promise<boolean> {
 		if (this.#host.consumeLastServedToolChoiceLabel() === "user-force") return false;
 		if (this.#host.planModeEnabled()) return false;
+		if (this.#host.hasPendingAsyncWake()) {
+			logger.debug("Todo completion: async jobs in flight will re-wake the loop; skipping reminder");
+			return false;
+		}
 		if (this.#reminderAwaitingProgress) {
 			logger.debug("Todo completion: prior reminder still awaiting agent action; staying silent", {
 				attempt: this.#reminderCount,
@@ -437,59 +441,96 @@ export class TodoTracker {
 					.map(task => ({ content: task.content, status: task.status })),
 			}))
 			.filter(phase => phase.tasks.length > 0);
-		const incomplete = incompleteByPhase.flatMap(phase => phase.tasks);
-		if (incomplete.length === 0) {
-			this.#reminderCount = 0;
-			this.#reminderAwaitingProgress = false;
-			return false;
-		}
-		if (isAwaitingUserAnswer(message)) {
-			logger.debug("Todo completion: assistant is waiting for user input; skipping reminder", {
-				incomplete: incomplete.length,
+		const actionable = incompleteByPhase.flatMap(phase => phase.tasks);
+
+		if (actionable.length > 0) {
+			this.#reminderCount++;
+			const todoList = incompleteByPhase
+				.map(phase => `- ${phase.name}\n${phase.tasks.map(task => `  - ${task.content}`).join("\n")}`)
+				.join("\n");
+			const reminder =
+				`<system-reminder>\n` +
+				`You stopped with ${actionable.length} incomplete todo item(s):\n${todoList}\n\n` +
+				`Please continue working on these tasks or mark them complete if finished.\n` +
+				`(Reminder ${this.#reminderCount}/${remindersMax})\n` +
+				`</system-reminder>`;
+			logger.debug("Todo completion: sending reminder", {
+				incomplete: actionable.length,
+				attempt: this.#reminderCount,
 			});
-			return false;
-		}
-		if (this.#host.hasPendingAsyncWake()) {
-			logger.debug("Todo completion: async jobs in flight will re-wake the loop; skipping reminder", {
-				incomplete: incomplete.length,
+			await this.#host.emitSessionEvent({
+				type: "todo_reminder",
+				todos: actionable,
+				attempt: this.#reminderCount,
+				maxAttempts: remindersMax,
 			});
+			const reminderMessage: Message = {
+				role: "developer",
+				content: [{ type: "text", text: reminder }],
+				attribution: "agent",
+				timestamp: Date.now(),
+			};
+			this.#mutationsSinceLastTouch = 0;
+			this.#reminderAwaitingProgress = true;
+			this.#host.agent.appendMessage(reminderMessage);
+			this.#host.sessionManager.appendMessage(reminderMessage);
+			this.#host.scheduleAgentContinue({
+				source: "todo-reminder",
+				generation: this.#host.promptGeneration(),
+			});
+			return true;
+		}
+
+		const allTasks = phases.flatMap(phase => phase.tasks);
+		const blocked = allTasks.filter((task): task is TodoItem & { status: "blocked" } => task.status === "blocked");
+
+		if (blocked.length > 0) {
+			if (!this.#allBlockedReminderSent && this.#reminderCount < remindersMax) {
+				this.#allBlockedReminderSent = true;
+				this.#reminderCount++;
+				this.#mutationsSinceLastTouch = 0;
+				this.#reminderAwaitingProgress = true;
+
+				const blockedList = blocked
+					.map(task => `- ${task.content}${task.blocker ? ` (阻塞原因: ${task.blocker})` : ""}`)
+					.join("\n");
+				const reminder =
+					`<system-reminder>\n` +
+					`当前所有未完成待办项 (${blocked.length} 项) 均处于阻塞状态 (blocked):\n${blockedList}\n\n` +
+					`若存在你可自主执行的解阻措施，请继续执行；若确实需要外部决策、授权或环境支持，请明确向用户报告具体阻塞原因，不得虚标完成或假定任务已成功。\n` +
+					`(纠偏提醒 ${this.#reminderCount}/${remindersMax})\n` +
+					`</system-reminder>`;
+
+				logger.debug("Todo completion: sending all-blocked correction reminder", {
+					blocked: blocked.length,
+					attempt: this.#reminderCount,
+				});
+				await this.#host.emitSessionEvent({
+					type: "todo_reminder",
+					todos: blocked,
+					attempt: this.#reminderCount,
+					maxAttempts: remindersMax,
+				});
+				const reminderMessage: Message = {
+					role: "developer",
+					content: [{ type: "text", text: reminder }],
+					attribution: "agent",
+					timestamp: Date.now(),
+				};
+				this.#host.agent.appendMessage(reminderMessage);
+				this.#host.sessionManager.appendMessage(reminderMessage);
+				this.#host.scheduleAgentContinue({
+					source: "todo-reminder",
+					generation: this.#host.promptGeneration(),
+				});
+				return true;
+			}
 			return false;
 		}
-		this.#reminderCount++;
-		const todoList = incompleteByPhase
-			.map(phase => `- ${phase.name}\n${phase.tasks.map(task => `  - ${task.content}`).join("\n")}`)
-			.join("\n");
-		const reminder =
-			`<system-reminder>\n` +
-			`You stopped with ${incomplete.length} incomplete todo item(s):\n${todoList}\n\n` +
-			`Please continue working on these tasks or mark them complete if finished.\n` +
-			`(Reminder ${this.#reminderCount}/${remindersMax})\n` +
-			`</system-reminder>`;
-		logger.debug("Todo completion: sending reminder", {
-			incomplete: incomplete.length,
-			attempt: this.#reminderCount,
-		});
-		await this.#host.emitSessionEvent({
-			type: "todo_reminder",
-			todos: incomplete,
-			attempt: this.#reminderCount,
-			maxAttempts: remindersMax,
-		});
-		const reminderMessage: Message = {
-			role: "developer",
-			content: [{ type: "text", text: reminder }],
-			attribution: "agent",
-			timestamp: Date.now(),
-		};
-		this.#mutationsSinceLastTouch = 0;
-		this.#reminderAwaitingProgress = true;
-		this.#host.agent.appendMessage(reminderMessage);
-		this.#host.sessionManager.appendMessage(reminderMessage);
-		this.#host.scheduleAgentContinue({
-			source: "todo-reminder",
-			generation: this.#host.promptGeneration(),
-		});
-		return true;
+
+		this.#reminderCount = 0;
+		this.#reminderAwaitingProgress = false;
+		return false;
 	}
 
 	/** Takes the next hidden mid-run reconciliation nudge, if its budget and guards allow. */
@@ -763,139 +804,52 @@ function toolCallOpFromMessage(message: AgentMessage, toolCallId: string): strin
 	return undefined;
 }
 
-function assistantText(message: AssistantMessage): string {
-	return message.content
-		.filter((content): content is TextContent => content.type === "text")
-		.map(content => content.text)
-		.join("\n")
-		.trim();
-}
-
-function promptLine(line: string): PromptLine {
-	const withoutMarkdownPrefix = line
-		.trim()
-		.replace(INLINE_EMPHASIS_RE, "$2")
-		.replace(MARKDOWN_PROMPT_PREFIX_RE, "")
-		.trim();
-	const withoutPromptLabel = withoutMarkdownPrefix.replace(PROMPT_LABEL_RE, "").trim();
-	const withoutEmphasis = withoutPromptLabel.replace(WRAPPED_EMPHASIS_RE, "$2").trim();
-	return {
-		text: withoutEmphasis,
-		hadPromptLabel: withoutPromptLabel !== withoutMarkdownPrefix,
-	};
-}
-
-function isQuestionPromptLine(line: string): boolean {
-	const candidate = promptLine(line);
-	if (!/[?？]\s*$/.test(candidate.text)) return false;
-	return (
-		candidate.hadPromptLabel ||
-		QUESTION_PROMPT_RE.test(candidate.text) ||
-		CHOICE_CONFIRMATION_RE.test(candidate.text) ||
-		USER_DIRECTED_PROMPT_RE.test(candidate.text) ||
-		NON_ASCII_TEXT_RE.test(candidate.text)
-	);
-}
-
-function isResponseCueLine(line: string): boolean {
-	const candidate = promptLine(line)
-		.text.replace(/[.!?。！？]+$/, "")
-		.replace(LEADING_CONNECTIVE_RE, "")
-		.trim();
-	return USER_RESPONSE_CUE_RE.test(candidate);
-}
+const DOMAIN_WORKFLOW_TOOLS: Record<string, true> = {
+	reverse_workflow: true,
+	reverse_workspace: true,
+	reverse_runtime_session: true,
+};
 
 /**
- * How a closing span hands control back, strongest first: `cue` instructs the user
- * ("tell me…", "If you confirm, I'll…") and no later prose can answer it; `request`
- * asks outright (labelled, user-addressed, or non-English question) but the agent may
- * still answer it itself; `question` is only question-shaped ("What's next?") and may
- * be a heading.
+ * Extracts reverse engineering workflow IDs from tool result details (including xdev.inner wrapper).
+ * Only domain workflow tools (reverse_workflow, reverse_workspace, reverse_runtime_session)
+ * or explicit xd:// dispatches to these tools are trusted into the active workflow scope.
  */
-type ClosingAsk = "none" | "question" | "request" | "cue";
+export function extractWorkflowIdsFromDetails(details: unknown, toolName?: string): string[] {
+	if (!isRecord(details)) return [];
+	let effectiveTool = toolName;
+	let effective = details;
 
-function askOf(span: string): ClosingAsk {
-	if (isResponseCueLine(span)) return "cue";
-	if (!isQuestionPromptLine(span)) return "none";
-	const candidate = promptLine(span);
-	return candidate.hadPromptLabel || ADDRESSEE_RE.test(candidate.text) || NON_ASCII_TEXT_RE.test(candidate.text)
-		? "request"
-		: "question";
-}
-
-/** The last two sentences of the prose lines closing `paragraph`; a list item ends the walk. */
-function closingSentences(paragraph: string): string[] {
-	const sentences: string[] = [];
-	const lines = paragraph.split(/\r?\n/);
-	for (let index = lines.length - 1; index >= 0 && sentences.length < 2; index--) {
-		const line = lines[index].trim();
-		if (OPTION_LINE_RE.test(line)) break;
-		const lineSentences = line.split(SENTENCE_BREAK_RE).filter(Boolean);
-		sentences.unshift(...lineSentences.slice(sentences.length - 2));
+	if (isRecord(details.xdev)) {
+		if (typeof details.xdev.tool === "string") {
+			effectiveTool = details.xdev.tool;
+		}
+		if (isRecord(details.xdev.inner)) {
+			effective = details.xdev.inner as Record<string, unknown>;
+		}
 	}
-	return sentences;
-}
 
-function closingAsk(paragraph: string): ClosingAsk {
-	const lastLine = paragraph.slice(paragraph.lastIndexOf("\n") + 1).trim();
-	const sentences = closingSentences(paragraph);
-	const asks = [askOf(lastLine), ...sentences.slice(-1).map(askOf)];
-	// No lexicon recognizes a non-English follow-up ("…? Отдельно скажите, …"), and none
-	// recognizes a non-English self-answer either; an open request is the costlier miss.
-	const foreignQuestion =
-		sentences.length === 2 && NON_ASCII_TEXT_RE.test(sentences[0]) && isQuestionPromptLine(sentences[0]);
-	if (asks.includes("cue")) return "cue";
-	if (foreignQuestion || asks.includes("request")) return "request";
-	return asks.includes("question") ? "question" : "none";
-}
+	if (!effectiveTool || !DOMAIN_WORKFLOW_TOOLS[effectiveTool]) {
+		return [];
+	}
 
-function isAwaitingUserAnswer(message: AssistantMessage): boolean {
-	const text = assistantText(message);
-	if (!text) return false;
-	const paragraphs = text.split(/\r?\n\s*\r?\n/);
-	const lastParagraph = paragraphs.at(-1)?.trim() ?? "";
-	if (closingAsk(lastParagraph) !== "none") return true;
-	// A one-line closing note ("Repository unchanged, no commits.") does not withdraw an
-	// instruction in the paragraph before it. A question there may be self-answered by
-	// that note ("Do you need…?\n\nNo, …"), so it does not count.
-	const previousParagraph = paragraphs.at(-2)?.trim();
+	const ids = new Set<string>();
 	if (
-		previousParagraph &&
-		!lastParagraph.includes("\n") &&
-		!OPTION_LINE_RE.test(lastParagraph) &&
-		closingAsk(previousParagraph) === "cue"
+		isRecord(effective.workflow) &&
+		typeof effective.workflow.id === "string" &&
+		effective.workflow.id.trim().length > 0
 	) {
-		return true;
+		ids.add(effective.workflow.id.trim());
 	}
-	const lines = text.split(/\r?\n/);
-
-	// Options and a recommendation do not answer the question on the user's behalf.
-	// Stop at other prose so self-answered questions still allow unfinished work to resume.
-	let optionCount = 0;
-	let hasRecommendation = false;
-	for (let index = lines.length - 1; index >= 0; index--) {
-		const line = lines[index].trim();
-		if (!line) continue;
-		if (OPTION_LINE_RE.test(line)) {
-			optionCount++;
-			continue;
-		}
-		const candidate = promptLine(line);
-		if (optionCount > 0) {
-			return (
-				optionCount >= 2 &&
-				isQuestionPromptLine(line) &&
-				(hasRecommendation ||
-					candidate.hadPromptLabel ||
-					USER_DIRECTED_PROMPT_RE.test(candidate.text) ||
-					CHOICE_CONFIRMATION_RE.test(candidate.text))
-			);
-		}
-		if (RECOMMENDATION_RE.test(candidate.text)) {
-			hasRecommendation = true;
-			continue;
-		}
-		return false;
+	if (
+		isRecord(effective.step) &&
+		typeof effective.step.workflow_id === "string" &&
+		effective.step.workflow_id.trim().length > 0
+	) {
+		ids.add(effective.step.workflow_id.trim());
 	}
-	return false;
+	if (typeof effective.workflow_id === "string" && effective.workflow_id.trim().length > 0) {
+		ids.add(effective.workflow_id.trim());
+	}
+	return Array.from(ids);
 }

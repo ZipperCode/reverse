@@ -9,6 +9,7 @@ packages/*/dist-chrome/
 packages/*/dist-firefox/
 target/
 .xwin-cache/
+.bun-cache/
 *.tsbuildinfo
 *.node
 *.b64.js
@@ -70,6 +71,7 @@ pi-*.html
 # Generated files
 packages/coding-agent/export-assets/
 packages/coding-agent/src/export/html/viewer.generated.txt
+packages/coding-agent/src/export/html/tool-views.generated.js
 packages/natives/npm/
 /runs/
 sdk/python/reverse-rpc/src/reverse_rpc.egg-info/

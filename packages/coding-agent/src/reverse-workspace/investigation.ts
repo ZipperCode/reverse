@@ -524,6 +524,65 @@ async function verifyRecordedRefsUnchanged(
 	}
 }
 
+export interface RecordConflictRecovery {
+	reason: "finalized_run_conflict";
+	status: "succeeded" | "failed";
+	runId: string;
+	workflowId: string;
+	stepId: string;
+	conflictField?: string;
+	nextSteps: {
+		read: string;
+		write: string;
+	};
+}
+
+export function isRecordConflictRecovery(context: unknown): context is RecordConflictRecovery {
+	if (!context || typeof context !== "object") return false;
+	const candidate = context as Record<string, unknown>;
+	if (candidate.reason !== "finalized_run_conflict") return false;
+	if (candidate.status !== "succeeded" && candidate.status !== "failed") return false;
+	if (
+		typeof candidate.runId !== "string" ||
+		typeof candidate.workflowId !== "string" ||
+		typeof candidate.stepId !== "string"
+	) {
+		return false;
+	}
+	const nextSteps = candidate.nextSteps;
+	if (!nextSteps || typeof nextSteps !== "object") return false;
+	const ns = nextSteps as Record<string, unknown>;
+	return typeof ns.read === "string" && typeof ns.write === "string";
+}
+
+function throwFinalizedRunConflict(
+	reasonDetail: string,
+	existingRun: AnalysisRunRecord,
+	runId: string,
+	workflowId: string,
+	conflictField?: string,
+): never {
+	const guide =
+		"当前实验 run 已终结，禁止追加产物或改写记录。若需查阅历史实验请使用 recall (read)；若需开展新实验请先使用 begin 创建新 run (write)；仅允许使用完全相同的参数重试以修复工作流关联。";
+	// 所有调用点均已排除 running，恢复契约只返回终态。
+	const recoveryContext = {
+		reason: "finalized_run_conflict",
+		status: existingRun.status as RecordConflictRecovery["status"],
+		runId,
+		workflowId,
+		stepId: existingRun.step_id,
+		conflictField,
+		nextSteps: {
+			read: `reverse_workspace(action: "recall", workflow_id: "${workflowId}")`,
+			write: `reverse_workspace(action: "begin", workflow_id: "${workflowId}", step_id: "${existingRun.step_id}", purpose: "...", command: "...")`,
+		},
+	} satisfies RecordConflictRecovery;
+	throw new ToolError(
+		`Conflict recording run '${runId}': ${reasonDetail}。${guide}`,
+		recoveryContext,
+	);
+}
+
 /**
  * 校验并持久化实验结果（复核输入与旧脚本未篡改、校验新脚本与输出位于当前 run 内、关联工作流步骤产物引用）。
  */
@@ -612,14 +671,41 @@ export async function recordAnalysisRun(options: RecordAnalysisRunOptions): Prom
 			}
 
 			if (options.stepId !== undefined && options.stepId.trim() !== existingRun.step_id) {
+				if (existingRun.status !== "running") {
+					throwFinalizedRunConflict(
+						`步骤 step_id 不匹配（期望 '${existingRun.step_id}'，实际 '${options.stepId.trim()}'）`,
+						existingRun,
+						runId,
+						workflowId,
+						"step_id",
+					);
+				}
 				throw new ToolError(
 					`Step ID mismatch for run '${runId}': expected '${existingRun.step_id}', got '${options.stepId.trim()}'.`,
 				);
 			}
 			if (options.purpose !== undefined && redactSecrets(options.purpose.trim()) !== existingRun.purpose) {
+				if (existingRun.status !== "running") {
+					throwFinalizedRunConflict(
+						"实验目标 purpose 与已终结 run 不一致",
+						existingRun,
+						runId,
+						workflowId,
+						"purpose",
+					);
+				}
 				throw new ToolError(`Conflict for run '${runId}': purpose does not match recorded run purpose.`);
 			}
 			if (options.command !== undefined && redactSecrets(options.command.trim()) !== existingRun.command) {
+				if (existingRun.status !== "running") {
+					throwFinalizedRunConflict(
+						"执行命令 command 与已终结 run 不一致",
+						existingRun,
+						runId,
+						workflowId,
+						"command",
+					);
+				}
 				throw new ToolError(`Conflict for run '${runId}': command does not match recorded run command.`);
 			}
 
@@ -628,6 +714,15 @@ export async function recordAnalysisRun(options: RecordAnalysisRunOptions): Prom
 				for (const rawInput of options.inputs) {
 					const inputRef = await resolveSafeFileRef(resolvedProjectDir, rawInput, resolvedProjectDir, "input");
 					if (!recordedInputSet.has(inputRef.path)) {
+						if (existingRun.status !== "running") {
+							throwFinalizedRunConflict(
+								`输入文件 '${rawInput}' 未在 begin 阶段声明`,
+								existingRun,
+								runId,
+								workflowId,
+								"inputs",
+							);
+						}
 						throw new ToolError(
 							`Input '${rawInput}' was not declared at 'begin' for run '${runId}'. Start a new run with 'begin'.`,
 						);
@@ -638,18 +733,34 @@ export async function recordAnalysisRun(options: RecordAnalysisRunOptions): Prom
 			// 已完成记录：校验是否完全一致的幂等重试，冲突则拒绝修改历史
 			if (existingRun.status !== "running") {
 				if (existingRun.exit_code !== options.exitCode) {
-					throw new ToolError(
-						`Conflict recording run '${runId}': already finalized with exit_code ${existingRun.exit_code}, cannot overwrite with ${options.exitCode}.`,
+					throwFinalizedRunConflict(
+						`已终结且 exit_code 为 ${existingRun.exit_code}，无法覆盖为 ${options.exitCode}`,
+						existingRun,
+						runId,
+						workflowId,
+						"exit_code",
 					);
 				}
 				if (existingRun.summary !== summary) {
-					throw new ToolError(`Conflict recording run '${runId}': already finalized with a different summary.`);
+					throwFinalizedRunConflict(
+						"已终结且记录了不同的 summary 摘要，禁止改写",
+						existingRun,
+						runId,
+						workflowId,
+						"summary",
+					);
 				}
 				if (
 					normalizedEvidenceIds.length !== existingRun.evidence_ids.length ||
 					!normalizedEvidenceIds.every((id, idx) => id === existingRun.evidence_ids[idx])
 				) {
-					throw new ToolError(`Conflict recording run '${runId}': already finalized with different evidence_ids.`);
+					throwFinalizedRunConflict(
+						"已终结且记录了不同的 evidence_ids，禁止改写",
+						existingRun,
+						runId,
+						workflowId,
+						"evidence_ids",
+					);
 				}
 
 				await verifyRecordedRefsUnchanged(resolvedProjectDir, existingRun.inputs, "input");
@@ -669,7 +780,13 @@ export async function recordAnalysisRun(options: RecordAnalysisRunOptions): Prom
 					submittedOutputPaths.length !== existingRun.outputs.length ||
 					!submittedOutputPaths.every((p, idx) => p === existingRun.outputs[idx].path)
 				) {
-					throw new ToolError(`Conflict recording run '${runId}': already finalized with different output_paths.`);
+					throwFinalizedRunConflict(
+						"已终结且包含不同的 output_paths 产物列表，禁止追加或修改",
+						existingRun,
+						runId,
+						workflowId,
+						"output_paths",
+					);
 				}
 
 				const submittedScriptSet = new Set<string>();
@@ -680,16 +797,24 @@ export async function recordAnalysisRun(options: RecordAnalysisRunOptions): Prom
 				const existingScriptSet = new Set(existingRun.scripts.map(s => s.path));
 				for (const subPath of submittedScriptSet) {
 					if (!existingScriptSet.has(subPath)) {
-						throw new ToolError(
-							`Conflict recording run '${runId}': script '${subPath}' was not part of finalized run.`,
+						throwFinalizedRunConflict(
+							`脚本 '${subPath}' 不属于已终结 run 的既有脚本，禁止追加`,
+							existingRun,
+							runId,
+							workflowId,
+							"script_paths",
 						);
 					}
 				}
 				const runRelPrefix = `${paths.relative.run_dir}/`;
 				for (const recScript of existingRun.scripts) {
 					if (recScript.path.startsWith(runRelPrefix) && !submittedScriptSet.has(recScript.path)) {
-						throw new ToolError(
-							`Conflict recording run '${runId}': finalized run-local script '${recScript.path}' omitted from script_paths.`,
+						throwFinalizedRunConflict(
+							`已终结 run 的内部脚本 '${recScript.path}' 在 script_paths 中被遗漏`,
+							existingRun,
+							runId,
+							workflowId,
+							"script_paths",
 						);
 					}
 				}

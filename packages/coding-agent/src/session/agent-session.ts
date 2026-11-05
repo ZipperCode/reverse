@@ -238,6 +238,14 @@ import {
 import { isAttachmentOnlyTitleInput, isLowSignalTitleInput } from "../tiny/text";
 import type { ImageAttachmentEntry, ToolSession } from "../tools";
 import { resolveApproval } from "../tools/approval";
+import type { TodoItem } from "@reverse/tui/tools/todo";
+import {
+	type ReverseWorkflowRecord,
+	ReverseWorkflowStore,
+	getWorkflowAcceptanceCriteria,
+	evaluateAcceptanceSatisfaction,
+} from "../reverse-workflow";
+import { type EvidenceRecord, EvidenceStore } from "../evidence";
 import { type AskToolDetails } from "@reverse/tui/tools/ask";
 import { type AskToolInput, recoverAskQuestions } from "../tools/ask";
 import {
@@ -1044,6 +1052,7 @@ export class AgentSession implements SettingsScope {
 	#planModeReminderCount = 0;
 	#planModeReminderAwaitingProgress = false;
 	readonly #todo: TodoTracker;
+	#lastDeliveryReceiptSignature?: string;
 	readonly #waitPollGuard: WaitPollGuard;
 	readonly #pendingPrerequisiteConstraints = new Map<
 		string,
@@ -1337,6 +1346,7 @@ export class AgentSession implements SettingsScope {
 		this.#recovery.resetForNewPrompt();
 		this.#maintenance.resetForNewPrompt();
 		this.#yieldTerminationPending = false;
+		this.#lastDeliveryReceiptSignature = undefined;
 	}
 
 	#acquirePowerAssertion(): void {
@@ -5294,7 +5304,7 @@ export class AgentSession implements SettingsScope {
 					return;
 				}
 				const todoContinuationScheduled =
-					this.#stopTimeTodoRemindersEnabled && (await this.#todo.checkCompletion(msg));
+					this.#stopTimeTodoRemindersEnabled && (await this.#todo.checkCompletion());
 				if (todoContinuationScheduled) {
 					await emitAgentEndNotification({ willContinue: true });
 					return;
@@ -5310,6 +5320,15 @@ export class AgentSession implements SettingsScope {
 				return;
 			}
 			const sessionStopWillContinue = await this.#emitSessionStopEvent(activeMessages, msg);
+			if (
+				!sessionStopWillContinue &&
+				!this.#planModeState?.enabled &&
+				msg.stopReason !== "error" &&
+				emptyOutputRecovery !== "terminal" &&
+				!this.#hasPendingAsyncWake()
+			) {
+				await this.#maybeEmitDeliveryReceipt();
+			}
 			await emitAgentEndNotification(sessionStopWillContinue ? { willContinue: true } : undefined);
 		}
 	};
@@ -12433,6 +12452,309 @@ export class AgentSession implements SettingsScope {
 			onSkip: () => this.#toolChoiceQueue.removeByLabel("plan-mode-decision"),
 		});
 		return true;
+	}
+
+	async #maybeEmitDeliveryReceipt(): Promise<void> {
+		if (this.#isDisposed || this.#abortInProgress) return;
+		if (this.#planModeState?.enabled) return;
+		if (this.#hasPendingAsyncWake()) return;
+
+		const phases = this.#todo.phases;
+		const touchedWorkflowIds = this.#todo.getTouchedWorkflowIds();
+
+		if (phases.length === 0 && touchedWorkflowIds.length === 0) return;
+
+		const allTasks = phases.flatMap(p => p.tasks);
+		const completed = allTasks.filter(t => t.status === "completed");
+		const blocked = allTasks.filter((t): t is TodoItem & { status: "blocked" } => t.status === "blocked");
+		const inProgress = allTasks.filter(t => t.status === "in_progress");
+		const pending = allTasks.filter(t => t.status === "pending");
+		const abandoned = allTasks.filter(t => t.status === "abandoned");
+		const unfinished = inProgress.length + pending.length;
+
+		const startGeneration = this.#promptGeneration;
+		const cwd = this.sessionManager.getCwd();
+		interface ReceiptWfItem {
+			id: string;
+			title?: string;
+			stepId?: string;
+			subject: string;
+			status: "satisfied" | "waived" | "proxy_verified" | "pending";
+			evidenceIds?: string[];
+			waiverReason?: string;
+			proxyReason?: string;
+			unmetReason?: string;
+		}
+
+		interface ReceiptWfResult {
+			workflowId: string;
+			target?: string;
+			status?: string;
+			stepsCount?: number;
+			criteriaUnbound?: boolean;
+			error?: string;
+			items?: ReceiptWfItem[];
+		}
+
+		const workflowResults: ReceiptWfResult[] = [];
+
+		if (touchedWorkflowIds.length > 0) {
+			try {
+				const workflowStore = ReverseWorkflowStore.forSession(cwd);
+				const evidenceStore = new EvidenceStore({ repositoryRoot: cwd });
+
+				for (const wfId of touchedWorkflowIds) {
+					if (this.#promptGeneration !== startGeneration || this.#abortInProgress || this.#isDisposed) {
+						return;
+					}
+
+					let workflow: ReverseWorkflowRecord | null = null;
+					try {
+						workflow = await workflowStore.get(wfId);
+					} catch (err) {
+						workflowResults.push({
+							workflowId: wfId,
+							error: `无法读取工作流记录: ${err instanceof Error ? err.message : String(err)}`,
+						});
+						continue;
+					}
+
+					if (!workflow) {
+						workflowResults.push({
+							workflowId: wfId,
+							error: `工作流 '${wfId}' 不存在`,
+						});
+						continue;
+					}
+
+					const criteria = getWorkflowAcceptanceCriteria(workflow);
+					if (criteria.length === 0) {
+						workflowResults.push({
+							workflowId: wfId,
+							target: workflow.target,
+							status: workflow.status,
+							stepsCount: workflow.steps.length,
+							criteriaUnbound: true,
+							items: [],
+						});
+						continue;
+					}
+
+					const items: ReceiptWfItem[] = [];
+					for (const criterion of criteria) {
+						if (this.#promptGeneration !== startGeneration || this.#abortInProgress || this.#isDisposed) {
+							return;
+						}
+
+						if (criterion.status === "waived") {
+							items.push({
+								id: criterion.id,
+								title: criterion.title,
+								stepId: criterion.step_id,
+								subject: criterion.subject,
+								status: "waived",
+								waiverReason: criterion.waiver_reason,
+								evidenceIds: criterion.satisfied_by_evidence_ids ?? [],
+							});
+							continue;
+						}
+
+						const evidenceRecords: EvidenceRecord[] = [];
+						const evidenceIssues: string[] = [];
+						const evIdsToFetch = new Set<string>([
+							...(criterion.satisfied_by_evidence_ids ?? []),
+							...(criterion.proxy_evidence_ids ?? []),
+						]);
+						const step = workflow.steps.find(s => s.id === criterion.step_id);
+						if (step?.evidence_ids) {
+							for (const eid of step.evidence_ids) evIdsToFetch.add(eid);
+						}
+
+						for (const eid of evIdsToFetch) {
+							try {
+								const record = await evidenceStore.getRecord(eid);
+								if (!record) {
+									evidenceIssues.push(`证据 '${eid}' 不存在`);
+									continue;
+								}
+								const drift = await evidenceStore.checkDrift(record);
+								if (drift.targetMissing || drift.targetDrift || drift.excerptDrift) {
+									evidenceIssues.push(`证据 '${eid}' 的目标缺失或内容已变化`);
+									continue;
+								}
+								evidenceRecords.push(record);
+							} catch (error) {
+								evidenceIssues.push(
+									`证据 '${eid}' 无法复核: ${error instanceof Error ? error.message : String(error)}`,
+								);
+							}
+						}
+
+						if (evidenceIssues.length > 0) {
+							items.push({
+								id: criterion.id,
+								title: criterion.title,
+								stepId: criterion.step_id,
+								subject: criterion.subject,
+								status: "pending",
+								evidenceIds: [...evIdsToFetch],
+								unmetReason: evidenceIssues.join("；"),
+							});
+							continue;
+						}
+
+						try {
+							const satisfaction = await evaluateAcceptanceSatisfaction(
+								criterion,
+								evidenceRecords,
+								evidenceStore,
+							);
+							items.push({
+								id: criterion.id,
+								title: criterion.title,
+								stepId: criterion.step_id,
+								subject: criterion.subject,
+								status: satisfaction.status,
+								evidenceIds: satisfaction.matchingEvidenceIds,
+								proxyReason: satisfaction.proxyReason,
+								unmetReason: satisfaction.unmetReason,
+							});
+						} catch (evalErr) {
+							items.push({
+								id: criterion.id,
+								title: criterion.title,
+								stepId: criterion.step_id,
+								subject: criterion.subject,
+								status: "pending",
+								unmetReason: `验收校验异常: ${evalErr instanceof Error ? evalErr.message : String(evalErr)}`,
+							});
+						}
+					}
+
+					workflowResults.push({
+						workflowId: wfId,
+						target: workflow.target,
+						status: workflow.status,
+						stepsCount: workflow.steps.length,
+						criteriaUnbound: false,
+						items,
+					});
+				}
+			} catch (storeErr) {
+				workflowResults.push({
+					workflowId: touchedWorkflowIds.join(", "),
+					error: `工作流存储异常: ${storeErr instanceof Error ? storeErr.message : String(storeErr)}`,
+				});
+			}
+		}
+
+		if (this.#promptGeneration !== startGeneration || this.#abortInProgress || this.#isDisposed) {
+			return;
+		}
+
+		const lines: string[] = ["### 交付收据 (Delivery Receipt)"];
+
+		if (phases.length > 0) {
+			const total = allTasks.length;
+			const parts: string[] = [`待办: ${completed.length}/${total} 完成`];
+			if (blocked.length > 0) parts.push(`${blocked.length} 阻塞`);
+			if (unfinished > 0) parts.push(`${unfinished} 待处理, 未完成`);
+			else if (allTasks.length > 0 && completed.length === 0 && blocked.length > 0) parts.push("未完成");
+			lines.push(parts.join(" (") + (parts.length > 1 ? ")" : ""));
+
+			for (const b of blocked) {
+				lines.push(`- ${b.content} [阻塞]: ${b.blocker || "未知原因"}`);
+			}
+			if (unfinished > 0 && completed.length < total) {
+				for (const t of [...inProgress, ...pending]) {
+					lines.push(`- ${t.content} [${t.status === "in_progress" ? "进行中" : "待处理"}]`);
+				}
+			}
+		}
+
+		if (touchedWorkflowIds.length === 0) {
+			lines.push("工作流: 本轮未绑定领域验收");
+		} else {
+			for (const wf of workflowResults) {
+				if (wf.error) {
+					lines.push(`工作流: \`${wf.workflowId}\` [无法读取: ${wf.error}]`);
+				} else if (wf.criteriaUnbound) {
+					lines.push(
+						`工作流: \`${wf.workflowId}\` (目标: ${wf.target ?? "unknown"}, ${wf.stepsCount ?? 0} 步已定义, 未配置独立验收标准)`,
+					);
+				} else {
+					lines.push(`工作流: \`${wf.workflowId}\` (目标: ${wf.target ?? "unknown"})`);
+					for (const item of wf.items ?? []) {
+						if (item.status === "satisfied") {
+							lines.push(
+								`- ${item.id} (${item.title || item.subject}) [已验证]: 证据 \`${item.evidenceIds?.join(", ") || "已绑定"}\``,
+							);
+						} else if (item.status === "waived") {
+							lines.push(
+								`- ${item.id} (${item.title || item.subject}) [已豁免]${item.waiverReason ? `: ${item.waiverReason}` : ""}`,
+							);
+						} else if (item.status === "proxy_verified") {
+							lines.push(
+								`- ${item.id} (${item.title || item.subject}) [代理验证/需确认]: ${item.proxyReason || "代理证据需用户确认"}`,
+							);
+						} else {
+							lines.push(
+								`- ${item.id} (${item.title || item.subject}) [未满足]: ${item.unmetReason || "未见有效支持证据"}`,
+							);
+						}
+					}
+				}
+			}
+		}
+
+		const signature = JSON.stringify({
+			todo:
+				phases.length > 0
+					? {
+							c: completed.length,
+							b: blocked.map(b => `${b.content}:${b.blocker ?? ""}`),
+							p: pending.length,
+							i: inProgress.length,
+							a: abandoned.length,
+						}
+					: null,
+			wf: workflowResults.map(w => ({
+				id: w.workflowId,
+				err: w.error,
+				unb: w.criteriaUnbound,
+				items: w.items?.map(it => ({ id: it.id, st: it.status, ev: it.evidenceIds, unmet: it.unmetReason })),
+			})),
+		});
+
+		if (signature === this.#lastDeliveryReceiptSignature) return;
+		this.#lastDeliveryReceiptSignature = signature;
+
+		this.#recordWithoutTurn([
+			{
+				role: "custom",
+				customType: "delivery-receipt",
+				content: lines.join("\n"),
+				display: true,
+				attribution: "agent",
+				timestamp: Date.now(),
+				details: {
+					todo:
+						phases.length > 0
+							? {
+									total: allTasks.length,
+									completed: completed.length,
+									pending: pending.length,
+									in_progress: inProgress.length,
+									blocked: blocked.length,
+									abandoned: abandoned.length,
+									blockers: blocked.map(b => ({ content: b.content, blocker: b.blocker })),
+								}
+							: undefined,
+					workflowBound: touchedWorkflowIds.length > 0,
+					workflows: workflowResults.length > 0 ? workflowResults : undefined,
+				},
+			},
+		]);
 	}
 
 	/**

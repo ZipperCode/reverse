@@ -3,7 +3,9 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { Settings } from "@reverse/coding-agent/config/settings";
+import { EvidenceStore } from "@reverse/coding-agent/evidence";
 import { ReverseWorkflowStore } from "@reverse/coding-agent/reverse-workflow";
+import { ToolError } from "@reverse/tui/tools/tool-errors";
 import {
 	ANALYSIS_RUN_SUBDIRS,
 	DEFAULT_WORKSPACE_DIR,
@@ -11,9 +13,17 @@ import {
 	hashFile,
 	loadInvestigationBrief,
 	recallAnalysisRuns,
+	recordAnalysisRun,
 	type AnalysisRunRecord,
 } from "@reverse/coding-agent/reverse-workspace";
-import { EvidenceTool, ReverseWorkflowTool, ReverseWorkspaceTool, type ToolSession } from "@reverse/coding-agent/tools";
+import {
+	EvidenceTool,
+	ReverseWorkflowTool,
+	ReverseWorkspaceTool,
+	type ReverseWorkspaceDetails,
+	type ToolSession,
+} from "@reverse/coding-agent/tools";
+import { dispatchXdevTool, resolveXdevTool, type XdevState } from "@reverse/coding-agent/tools/xdev";
 import { removeWithRetries } from "@reverse/utils";
 
 function createTestSession(cwd: string): ToolSession {
@@ -32,6 +42,7 @@ async function createTargetFixture(dir: string, name = "sample.elf"): Promise<st
 	await fs.writeFile(filePath, buf);
 	return filePath;
 }
+
 
 describe("Reverse Investigation Active Experiment Runs (Step 1)", () => {
 	it("assigns write approval tier to begin/record and read tier to recall", () => {
@@ -419,35 +430,276 @@ describe("Reverse Investigation Active Experiment Runs (Step 1)", () => {
 				expect(repairedRefs).toContain(expectedRef);
 			}
 
-			// 冲突提交（修改 summary 或 exit_code）必须拒绝且不篡改历史
-			await expect(
-				workspaceTool.execute("rec-a-conflict-summary", {
-					action: "record",
-					workflow_id: workflowId,
-					run_id: beginA.details.run_id!,
-					exit_code: 0,
-					summary: "Tampered summary",
-					script_paths: [scriptA],
-					output_paths: [outA],
-				}),
-			).rejects.toThrow(/Conflict/);
+			// 准备额外产物和脚本与独立 evidence 用于 table 覆盖 exit/summary/evidence/output/script 冲突
+			const extraScript = path.join(beginA.details.paths!.scripts_dir, "extra.py");
+			await fs.writeFile(extraScript, "print('extra')\n", "utf8");
+			const extraOut = path.join(beginA.details.paths!.dumps_dir, "extra.json");
+			await fs.writeFile(extraOut, '{"extra":true}\n', "utf8");
 
-			await expect(
-				workspaceTool.execute("rec-a-conflict-code", {
+			const evStore = new EvidenceStore({ repositoryRoot: tempDir });
+			const conflictEvidence = await evStore.addFact({
+				kind: "fact",
+				target: targetFile,
+				locator: "test:conflict",
+				sourceTool: "read",
+				content: "冲突校验使用的独立事实记录",
+			});
+
+			const conflictTable = [
+				{
+					label: "exit_code 冲突",
+					field: "exit_code",
+					params: { exit_code: 1, summary: "Run A completed", script_paths: [scriptA], output_paths: [outA] },
+				},
+				{
+					label: "summary 冲突",
+					field: "summary",
+					params: { exit_code: 0, summary: "Tampered summary", script_paths: [scriptA], output_paths: [outA] },
+				},
+				{
+					label: "output_paths 追加冲突",
+					field: "output_paths",
+					params: { exit_code: 0, summary: "Run A completed", script_paths: [scriptA], output_paths: [outA, extraOut] },
+				},
+				{
+					label: "script_paths 变更冲突",
+					field: "script_paths",
+					params: { exit_code: 0, summary: "Run A completed", script_paths: [scriptA, extraScript], output_paths: [outA] },
+				},
+				{
+					label: "evidence_ids 追加冲突",
+					field: "evidence_ids",
+					params: {
+						exit_code: 0,
+						summary: "Run A completed",
+						script_paths: [scriptA],
+						output_paths: [outA],
+						evidence_ids: [conflictEvidence.id],
+					},
+				},
+			];
+
+			for (const testCase of conflictTable) {
+				const conflictRes = await workspaceTool.execute(`rec-a-conflict-${testCase.field}`, {
 					action: "record",
 					workflow_id: workflowId,
 					run_id: beginA.details.run_id!,
-					exit_code: 1,
+					...testCase.params,
+				});
+				expect(conflictRes.isError).toBe(true);
+				const recovery = conflictRes.details.recovery;
+				expect(recovery).toBeDefined();
+				expect(recovery?.reason).toBe("finalized_run_conflict");
+				expect(recovery?.status).toBe("succeeded");
+				expect(recovery?.runId).toBe(beginA.details.run_id);
+				expect(recovery?.workflowId).toBe(workflowId);
+				expect(recovery?.stepId).toBe("elf_step_1");
+				expect(recovery?.conflictField).toBe(testCase.field);
+				expect(recovery?.nextSteps.read.length).toBeGreaterThan(0);
+				expect(recovery?.nextSteps.write.length).toBeGreaterThan(0);
+			}
+
+			// 核心底层 recordAnalysisRun 仍保持抛出携带结构化 context 的 ToolError
+			let rawAnalysisErr: unknown;
+			try {
+				await recordAnalysisRun({
+					projectDir: tempDir,
+					workflowId,
+					runId: beginA.details.run_id!,
+					exitCode: 1,
 					summary: "Run A completed",
-					script_paths: [scriptA],
-					output_paths: [outA],
-				}),
-			).rejects.toThrow(/Conflict/);
+					scriptPaths: [scriptA],
+					outputPaths: [outA],
+				});
+			} catch (err) {
+				rawAnalysisErr = err;
+			}
+			expect(rawAnalysisErr).toBeInstanceOf(ToolError);
+			const rawToolErr = rawAnalysisErr as ToolError;
+			expect(rawToolErr.context?.reason).toBe("finalized_run_conflict");
+			expect(rawToolErr.context?.conflictField).toBe("exit_code");
 
 			const diskRunA = JSON.parse(await fs.readFile(beginA.details.paths!.run_json, "utf8")) as AnalysisRunRecord;
 			expect(diskRunA.summary).toBe("Run A completed");
 			expect(diskRunA.exit_code).toBe(0);
 			expect(diskRunA.finished_at).toBe(originalFinishedAt);
+		} finally {
+			await removeWithRetries(tempDir);
+		}
+	});
+
+	it("rejects re-recording finalized run with new summary or outputs preserving run.json byte-for-byte, and guides recovery via begin + recall", async () => {
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "rev-inv-lifecycle-"));
+
+		try {
+			const targetFile = await createTargetFixture(tempDir, "service.elf");
+			const session = createTestSession(tempDir);
+			const workflowTool = new ReverseWorkflowTool(session);
+			const workspaceTool = new ReverseWorkspaceTool(session);
+
+			const createRes = await workflowTool.execute("wf-create", {
+				action: "create",
+				target: targetFile,
+				format: "ELF",
+				goal: "Verify lifecycle regression protection",
+			});
+			const workflowId = createRes.details.workflow!.id;
+
+			// 1. 显式 begin 启动第一个实验 run1
+			const begin1 = await workspaceTool.execute("ws-begin-1", {
+				action: "begin",
+				workflow_id: workflowId,
+				step_id: "elf_step_1",
+				purpose: "Initial experiment on service.elf",
+				command: "python3 test1.py",
+			});
+			const run1Id = begin1.details.run_id!;
+			const script1 = path.join(begin1.details.paths!.scripts_dir, "test1.py");
+			const out1 = path.join(begin1.details.paths!.dumps_dir, "out1.json");
+			await fs.writeFile(script1, "print('run1')\n", "utf8");
+			await fs.writeFile(out1, '{"version":1}\n', "utf8");
+
+			// 2. 正常终结 record run1
+			const rec1 = await workspaceTool.execute("ws-record-1", {
+				action: "record",
+				workflow_id: workflowId,
+				run_id: run1Id,
+				exit_code: 0,
+				summary: "Run 1 successfully finished",
+				script_paths: [script1],
+				output_paths: [out1],
+			});
+			expect(rec1.details.run?.status).toBe("succeeded");
+
+			// 读取并锁定原 run1 的 run.json 逐字节数据
+			const run1JsonPath = begin1.details.paths!.run_json;
+			const run1BytesBefore = await fs.readFile(run1JsonPath);
+
+			// 3. 模拟 agent 尝试向已终结的 run1 再次 record（修改 summary 或追加产物），必须被拒
+			const extraOut = path.join(begin1.details.paths!.dumps_dir, "extra.json");
+			await fs.writeFile(extraOut, '{"extra":true}\n', "utf8");
+
+			const summaryConflictRes = await workspaceTool.execute("ws-record-1-tamper-summary", {
+				action: "record",
+				workflow_id: workflowId,
+				run_id: run1Id,
+				exit_code: 0,
+				summary: "Attempting to change summary on finalized run",
+				script_paths: [script1],
+				output_paths: [out1],
+			});
+			expect(summaryConflictRes.isError).toBe(true);
+			const sRecovery = summaryConflictRes.details.recovery;
+			expect(sRecovery?.reason).toBe("finalized_run_conflict");
+			expect(sRecovery?.status).toBe("succeeded");
+			expect(sRecovery?.runId).toBe(run1Id);
+			expect(sRecovery?.workflowId).toBe(workflowId);
+			expect(sRecovery?.conflictField).toBe("summary");
+			expect(sRecovery?.nextSteps.read.length).toBeGreaterThan(0);
+			expect(sRecovery?.nextSteps.write.length).toBeGreaterThan(0);
+
+			const outputConflictRes = await workspaceTool.execute("ws-record-1-append-output", {
+				action: "record",
+				workflow_id: workflowId,
+				run_id: run1Id,
+				exit_code: 0,
+				summary: "Run 1 successfully finished",
+				script_paths: [script1],
+				output_paths: [out1, extraOut],
+			});
+			expect(outputConflictRes.isError).toBe(true);
+			const oRecovery = outputConflictRes.details.recovery;
+			expect(oRecovery?.reason).toBe("finalized_run_conflict");
+			expect(oRecovery?.conflictField).toBe("output_paths");
+
+			// 4. 验证直接 execute 冲突后原 run1 的 run.json 文件逐字节未改变
+			const run1BytesAfterDirect = await fs.readFile(run1JsonPath);
+			expect(run1BytesAfterDirect).toEqual(run1BytesBefore);
+
+			// 5. 真实 dispatchXdevTool (write xd://reverse_workspace) 路径覆盖：
+			// 验证 xdev 框架透传 details.recovery，调用方可看到 reason/status/nextSteps
+			const xdevState: XdevState = {
+				tools: new Map([[workspaceTool.name, workspaceTool]]),
+				mountedNames: new Set([workspaceTool.name]),
+				builtInNames: new Set([workspaceTool.name]),
+				isActive: () => false,
+				resolve: name => resolveXdevTool(xdevState, name),
+			};
+			const xdDispatch = await dispatchXdevTool(
+				xdevState,
+				"reverse_workspace",
+				JSON.stringify({
+					action: "record",
+					workflow_id: workflowId,
+					run_id: run1Id,
+					exit_code: 0,
+					summary: "Run 1 successfully finished",
+					script_paths: [script1],
+					output_paths: [out1, extraOut],
+				}),
+				"call-xd-record-conflict",
+			);
+			expect(xdDispatch.result.isError).toBe(true);
+			const xdInner = xdDispatch.xdev.inner as ReverseWorkspaceDetails | undefined;
+			expect(xdInner?.recovery).toBeDefined();
+			expect(xdInner?.recovery?.reason).toBe("finalized_run_conflict");
+			expect(xdInner?.recovery?.status).toBe("succeeded");
+			expect(xdInner?.recovery?.runId).toBe(run1Id);
+			expect(xdInner?.recovery?.workflowId).toBe(workflowId);
+			expect(xdInner?.recovery?.conflictField).toBe("output_paths");
+			expect(xdInner?.recovery?.nextSteps.read.length).toBeGreaterThan(0);
+			expect(xdInner?.recovery?.nextSteps.write.length).toBeGreaterThan(0);
+
+			// 验证经过 xd:// 调用后，原 run1 的 run.json 文件依然逐字节未改变
+			const run1BytesAfterXd = await fs.readFile(run1JsonPath);
+			expect(run1BytesAfterXd).toEqual(run1BytesBefore);
+
+			// 5. 按照恢复指引：显式 begin 新的 run2
+			const begin2 = await workspaceTool.execute("ws-begin-2", {
+				action: "begin",
+				workflow_id: workflowId,
+				step_id: "elf_step_1",
+				purpose: "Follow-up experiment with additional outputs",
+				command: "python3 test2.py",
+			});
+			const run2Id = begin2.details.run_id!;
+			expect(run2Id).not.toBe(run1Id);
+
+			const script2 = path.join(begin2.details.paths!.scripts_dir, "test2.py");
+			const out2 = path.join(begin2.details.paths!.dumps_dir, "out2.json");
+			await fs.writeFile(script2, "print('run2')\n", "utf8");
+			await fs.writeFile(out2, '{"version":2}\n', "utf8");
+
+			// 6. 对 run2 调用 record 成功终结
+			const rec2 = await workspaceTool.execute("ws-record-2", {
+				action: "record",
+				workflow_id: workflowId,
+				run_id: run2Id,
+				exit_code: 0,
+				summary: "Run 2 successfully finished with new findings",
+				script_paths: [script2],
+				output_paths: [out2],
+			});
+			expect(rec2.details.run?.status).toBe("succeeded");
+
+			// 7. recall 查看，两次实验均完好保存在工作流历史中
+			const recallRes = await workspaceTool.execute("ws-recall", {
+				action: "recall",
+				workflow_id: workflowId,
+			});
+			const recalledRuns = recallRes.details.recalled_runs ?? [];
+			expect(recalledRuns.length).toBeGreaterThanOrEqual(2);
+			const recalledIds = recalledRuns.map(r => r.run.id);
+			expect(recalledIds).toContain(run1Id);
+			expect(recalledIds).toContain(run2Id);
+
+			const recalledRun1 = recalledRuns.find(r => r.run.id === run1Id);
+			expect(recalledRun1?.run.summary).toBe("Run 1 successfully finished");
+			expect(recalledRun1?.run.outputs.map(o => o.path)).toContain(path.relative(tempDir, out1).replace(/\\/g, "/"));
+
+			const recalledRun2 = recalledRuns.find(r => r.run.id === run2Id);
+			expect(recalledRun2?.run.summary).toBe("Run 2 successfully finished with new findings");
+			expect(recalledRun2?.run.outputs.map(o => o.path)).toContain(path.relative(tempDir, out2).replace(/\\/g, "/"));
 		} finally {
 			await removeWithRetries(tempDir);
 		}

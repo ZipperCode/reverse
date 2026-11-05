@@ -108,6 +108,10 @@ Session definitions are appended after discovered agents, so an existing agent w
 
 After dispatch, press `Alt+A` to open [Agent Hub](./agent-hub.md). Its live roster shows each task agent's status, current activity, model, age, and usage. Select an agent to read its transcript and steer it directly; parked agents can be revived from the same view. Enable `tui.mouse` to click live task cards and jump-list rows instead, or watch the pinned `Subagents` block above the editor.
 
+目标、共同前置条件与文件归属确认后即可派发独立切面，不要求主线程先查完整个子系统。只读 Scout 负责定位和证据索引；需要执行、实现或深度推演的任务交给通用子任务；共享状态或有真实依赖的步骤保持串行。父任务在子任务运行期间继续独立工作，完全受依赖阻塞时才等待。
+
+成功且已持久化的 Scout 结构化结果以紧凑摘要进入父上下文，保留关键结论、有限文件引用与验证边界。完整结构化原件仍可通过 `agent://<id>` 读取，有 `report` 字段时可直接读取 `agent://<id>/report`。父任务仅按证据缺口读取相应字段，不默认重读所有长报告。无持久化原件的唯一输出不会被裁去，失败原因与取消状态仍按原协议交付。
+
 ### `vibe_spawn` tier routing
 
 `vibe_spawn` maps `fast` to bundled `sonic` and `good` to bundled `task`. Both resolve through `task.agentModelOverrides` before their bundled agent model defaults (`src/vibe/runtime.ts`, `src/task/agents.ts`).

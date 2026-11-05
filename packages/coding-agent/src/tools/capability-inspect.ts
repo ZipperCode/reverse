@@ -2170,7 +2170,7 @@ export class CapabilityInspectTool implements AgentTool<typeof capabilityInspect
 			...(limitations.length > 0 ? [`Limitations: ${limitations.join(" | ")}`] : []),
 			`Normalized Report (mode 0600): ${reportTarget.relativePath} (sha256: ${writtenReport.sha256.slice(0, 16)}...)`,
 			`Retained Raw Capa JSON (mode 0600): ${rawReportTarget.relativePath} (sha256: ${writtenRaw.sha256.slice(0, 16)}...)`,
-			`Record Hint: Pass output_paths: ${JSON.stringify(relativeOutputPaths)} when calling reverse_workspace(action: "record").`,
+			`Record Hint: 收齐本次结果后仅对 running run 记录一次 (output_paths: ${JSON.stringify(relativeOutputPaths)})；若当前 run 已终结，请先调用 reverse_workspace(action: "begin") 创建新 run，切勿重复 record。`,
 		];
 
 		return {
@@ -2508,7 +2508,7 @@ export class CapabilityInspectTool implements AgentTool<typeof capabilityInspect
 			...(warnings.length > 0 ? [`Warnings: ${warnings.join(" | ")}`] : []),
 			...(limitations.length > 0 ? [`Limitations: ${limitations.join(" | ")}`] : []),
 			`Normalized Report (mode 0600): ${reportTarget.relativePath} (sha256: ${writtenReport.sha256.slice(0, 16)}...)`,
-			`Record Hint: Pass output_paths: ${JSON.stringify(relativeOutputPaths)} when calling reverse_workspace(action: "record").`,
+			`Record Hint: 收齐本次结果后仅对 running run 记录一次 (output_paths: ${JSON.stringify(relativeOutputPaths)})；若当前 run 已终结，请先调用 reverse_workspace(action: "begin") 创建新 run，切勿重复 record。`,
 		];
 
 		return {

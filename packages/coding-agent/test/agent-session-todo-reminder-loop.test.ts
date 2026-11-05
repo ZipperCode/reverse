@@ -1,4 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import { Agent, type AgentTool } from "@reverse/agent";
 import type { AssistantMessage, TextContent, ToolCall } from "@reverse/ai";
 import { getBundledModel } from "@reverse/catalog/models";
@@ -6,6 +8,10 @@ import { ModelRegistry } from "@reverse/coding-agent/config/model-registry";
 import { Settings } from "@reverse/coding-agent/config/settings";
 import { AgentSession, type AgentSessionEvent } from "@reverse/coding-agent/session/agent-session";
 import { SessionManager } from "@reverse/coding-agent/session/session-manager";
+import type { CustomMessageEntry } from "@reverse/coding-agent/session/session-entries";
+import { ReverseWorkflowStore } from "@reverse/coding-agent/reverse-workflow/store";
+import { setWorkflowAcceptanceCriteria } from "@reverse/coding-agent/reverse-workflow/acceptance";
+import { EvidenceStore } from "@reverse/coding-agent/evidence/store";
 import { TodoTool, type ToolSession } from "@reverse/coding-agent/tools";
 import { cfgTodoEnabled, cfgTodoReminders } from "@reverse/coding-agent/tools/settings";
 import { TempDir } from "@reverse/utils";
@@ -108,6 +114,15 @@ describe("AgentSession todo reminder self-continuation suppression", () => {
 					item.type === "text" && item.text.includes("You stopped with 2 incomplete todo item(s):"),
 			);
 		});
+	}
+
+	function deliveryReceiptEntry(): CustomMessageEntry | undefined {
+		return sessionManager
+			.getBranch()
+			.find(
+				(entry): entry is CustomMessageEntry =>
+					entry.type === "custom_message" && entry.customType === "delivery-receipt",
+			);
 	}
 
 	beforeEach(() => {
@@ -226,110 +241,97 @@ describe("AgentSession todo reminder self-continuation suppression", () => {
 		},
 	);
 
-	it("does not remind or continue when the assistant yields with a user-facing question", async () => {
+	it("still reminds and continues when the assistant yields with a user-facing question while pending todos remain", async () => {
 		const continueSpy = vi.spyOn(session.agent, "continue").mockResolvedValue();
 
 		emitTextOnlyStop("I need your feedback before continuing. Which trade-off should I optimize for?");
 		await session.waitForIdle();
 
-		expect(reminderAttempts).toEqual([]);
-		expect(todoReminderTranscriptEntry()).toBeUndefined();
-		expect(continueSpy).not.toHaveBeenCalled();
+		expect(reminderAttempts).toEqual([1]);
+		expect(todoReminderTranscriptEntry()).toBeDefined();
+		expect(continueSpy).toHaveBeenCalledTimes(1);
 	});
 
-	it.each(["**What should I do next?**", "*What should I do next?*", "***What should I do next?***"])(
-		"does not remind when the assistant emphasizes its own question: %s",
+	it("still reminds and continues when the assistant yields with a non-English (Chinese) question while pending todos remain", async () => {
+		const continueSpy = vi.spyOn(session.agent, "continue").mockResolvedValue();
+
+		emitTextOnlyStop("我遇到一个需要你决定的问题：是否应该继续删除旧的配置文件？");
+		await session.waitForIdle();
+
+		expect(reminderAttempts).toEqual([1]);
+		expect(todoReminderTranscriptEntry()).toBeDefined();
+		expect(continueSpy).toHaveBeenCalledTimes(1);
+	});
+
+	it.each(["Go with A?", "Which approach?\n1. MCP tool\n2. Markdown fence\n\nI recommend the MCP tool."])(
+		"still reminds and continues across choice prompts while pending todos remain: %s",
 		async text => {
 			const continueSpy = vi.spyOn(session.agent, "continue").mockResolvedValue();
 
 			emitTextOnlyStop(text);
 			await session.waitForIdle();
 
-			expect(reminderAttempts).toEqual([]);
-			expect(todoReminderTranscriptEntry()).toBeUndefined();
-			expect(continueSpy).not.toHaveBeenCalled();
+			expect(reminderAttempts).toEqual([1]);
+			expect(todoReminderTranscriptEntry()).toBeDefined();
+			expect(continueSpy).toHaveBeenCalledTimes(1);
 		},
 	);
 
-	it("still reminds when the assistant strikes through its own question", async () => {
-		vi.spyOn(session.agent, "continue").mockResolvedValue();
-
-		emitTextOnlyStop("~~What should I do next?~~");
-		await session.waitForIdle();
-
-		expect(reminderAttempts).toEqual([1]);
-		expect(todoReminderTranscriptEntry()).toBeDefined();
-	});
-
-	it("does not remind or continue when the assistant yields with a non-English (Chinese) question", async () => {
+	it("fires at most one correction reminder when all remaining todos are blocked, then settles with delivery receipt", async () => {
 		const continueSpy = vi.spyOn(session.agent, "continue").mockResolvedValue();
 
-		emitTextOnlyStop("我遇到一个需要你决定的问题：是否应该继续删除旧的配置文件？");
-		await session.waitForIdle();
+		session.setTodoPhases([
+			{
+				name: "Investigation",
+				tasks: [{ content: "Inspect target memory", status: "blocked", blocker: "Need hardware debugger" }],
+			},
+		]);
 
-		expect(reminderAttempts).toEqual([]);
-		expect(todoReminderTranscriptEntry()).toBeUndefined();
-		expect(continueSpy).not.toHaveBeenCalled();
-	});
-
-	it.each([
-		"Go with A?",
-		[
-			"Next question, which decides the sandbox: **do your prototypes need network access?**",
-			"",
-			"1. **Fully offline.** Inline CSS and JS only.",
-			"2. **Read-only CDN access.** Load scripts, styles, fonts and images over HTTPS.",
-			"3. **Unrestricted.** Anything the page asks for.",
-			"",
-			"I'd recommend 2. Offline mode would break mocks that use CDN assets.",
-		].join("\n"),
-		"Which approach?\n1. MCP tool\n2. Markdown fence\n\nI recommend the MCP tool.",
-	])("does not resume an unanswered choice prompt: %s", async text => {
-		const continueSpy = vi.spyOn(session.agent, "continue").mockResolvedValue();
-
-		emitTextOnlyStop(text);
-		await session.waitForIdle();
-
-		expect(reminderAttempts).toEqual([]);
-		expect(todoReminderTranscriptEntry()).toBeUndefined();
-		expect(continueSpy).not.toHaveBeenCalled();
-	});
-
-	it.each([
-		// A closing status paragraph after a permission request does not answer it (#15986).
-		"This is implementation scope, so I did not start it myself. If you confirm, I'll hand these tickets to subagents.\n\nRepository unchanged, no commits.",
-		"Revert them or keep them in the working tree? Separately, tell me whether to commit the docs.",
-		"The migration is staged. Once you allow it, I'll run the backfill.",
-		"Blocked on credentials. Then message me, I'll continue from step 1.",
-		// Non-English: a question one sentence from the end, followed by an imperative the
-		// detector has no lexicon for.
-		"Три агента остановлены, правки не проверены. Откатить их или оставить в рабочей копии? Отдельно скажите, коммитить ли документацию.",
-		"Откатить их или оставить в рабочей копии?\nОтдельно скажите, коммитить ли документацию.",
-	])("does not resume when the closing paragraph hands a decision to the user: %s", async text => {
-		const continueSpy = vi.spyOn(session.agent, "continue").mockResolvedValue();
-
-		emitTextOnlyStop(text);
-		await session.waitForIdle();
-
-		expect(reminderAttempts).toEqual([]);
-		expect(continueSpy).not.toHaveBeenCalled();
-	});
-
-	it.each([
-		"**What's next?**\n\nI'll continue with slice 82.",
-		"Which configuration should this use? Use the existing default; the todo items still need work.",
-		"Let me continue with slice 82.",
-		// A one-line paragraph after a question may be its answer.
-		"Do you need to update anything?\n\nNo, the configuration remains compatible.",
-		"Finally, answer validation is complete.",
-	])("still resumes when no request is left open: %s", async text => {
-		const continueSpy = vi.spyOn(session.agent, "continue").mockResolvedValue();
-
-		emitTextOnlyStop(text);
+		emitTextOnlyStop("All remaining tasks are blocked.");
 		await session.waitForIdle();
 
 		expect(reminderAttempts).toEqual([1]);
 		expect(continueSpy).toHaveBeenCalledTimes(1);
+
+		// Second stop without unblocking: no further reminder, settles
+		emitTextOnlyStop("Still blocked.");
+		await session.waitForIdle();
+
+		expect(reminderAttempts).toEqual([1]);
+		expect(continueSpy).toHaveBeenCalledTimes(1);
+
+		// Delivery receipt emitted at terminal settle
+		const receipt = deliveryReceiptEntry();
+		expect(receipt).toBeDefined();
+		expect(receipt?.content).toContain("0/1 完成");
+		expect(receipt?.content).toContain("1 阻塞");
+		expect(receipt?.content).toContain("Need hardware debugger");
+		expect(receipt?.content).toContain("本轮未绑定领域验收");
+	});
+
+	it("settles with delivery receipt showing completed when all tasks are done", async () => {
+		const continueSpy = vi.spyOn(session.agent, "continue").mockResolvedValue();
+
+		session.setTodoPhases([
+			{
+				name: "Review",
+				tasks: [
+					{ content: "Slice 81", status: "completed" },
+					{ content: "Slice 82", status: "completed" },
+				],
+			},
+		]);
+
+		emitTextOnlyStop("All done.");
+		await session.waitForIdle();
+
+		expect(reminderAttempts).toEqual([]);
+		expect(continueSpy).not.toHaveBeenCalled();
+
+		const receipt = deliveryReceiptEntry();
+		expect(receipt).toBeDefined();
+		expect(receipt?.content).toContain("2/2 完成");
+		expect(receipt?.content).toContain("本轮未绑定领域验收");
 	});
 
 	it("still resumes unfinished work after a question-headed status list", async () => {
@@ -414,5 +416,184 @@ describe("AgentSession todo reminder self-continuation suppression", () => {
 
 		// 1/3 fires, agent does work, 2/3 fires, agent acks → suppressed, no 3/3.
 		expect(reminderAttempts).toEqual([1, 2]);
+	});
+
+	it("refreshes same-cycle acceptance after target drift without rewriting workflow history", async () => {
+		session.setTodoPhases([]);
+		const target = path.join(tempDir.path(), "target.bin");
+		await fs.writeFile(target, "original-target");
+		const workflowStore = ReverseWorkflowStore.forSession(tempDir.path());
+		const evidenceStore = new EvidenceStore({ repositoryRoot: tempDir.path() });
+		const evidence = await evidenceStore.addFact({
+			kind: "fact",
+			target: "target.bin",
+			sourceTool: "binary_diff",
+			locator: "offset:0x100",
+			content: "token validated",
+			subject: "auth_token_check",
+			assurance: "static_candidate",
+		});
+		const wf = await workflowStore.create({
+			id: "wf_live_test",
+			target: "target.bin",
+		});
+		wf.steps[0].evidence_ids = [evidence.id];
+		setWorkflowAcceptanceCriteria(wf, [
+			{
+				id: "c1",
+				step_id: wf.steps[0].id,
+				title: "目标事实验收",
+				subject: "auth_token_check",
+				status: "pending",
+				satisfied_by_evidence_ids: [evidence.id],
+			},
+		]);
+		await workflowStore.save(wf);
+		const workflowBefore = await workflowStore.get(wf.id);
+
+		emitToolResult("reverse_workflow", { workflow: { id: wf.id } });
+		emitTextOnlyStop("Workflow step finished.");
+		await session.waitForIdle();
+
+		const receipt = deliveryReceiptEntry();
+		const details = receipt?.details as {
+			workflows?: Array<{ items?: Array<{ status: string; evidenceIds?: string[] }> }>;
+		};
+		expect(details.workflows?.[0]?.items?.[0]?.status).toBe("satisfied");
+		expect(details.workflows?.[0]?.items?.[0]?.evidenceIds).toContain(evidence.id);
+
+		await fs.writeFile(target, "changed-target");
+		emitToolResult("reverse_workflow", { workflow: { id: wf.id } });
+		emitTextOnlyStop("重新检查同一目标。");
+		await session.waitForIdle();
+		const receipts = sessionManager
+			.getBranch()
+			.filter(
+				(entry): entry is CustomMessageEntry =>
+					entry.type === "custom_message" && entry.customType === "delivery-receipt",
+			);
+		expect(receipts).toHaveLength(2);
+		const changed = receipts[1].details as {
+			workflows?: Array<{ items?: Array<{ status: string; unmetReason?: string }> }>;
+		};
+		expect(changed.workflows?.[0]?.items?.[0]?.status).toBe("pending");
+		expect(changed.workflows?.[0]?.items?.[0]?.unmetReason).toBeDefined();
+		expect(await workflowStore.get(wf.id)).toEqual(workflowBefore);
+	});
+
+	it("distinguishes proxy evidence in delivery receipt", async () => {
+		session.setTodoPhases([]);
+		await fs.writeFile(path.join(tempDir.path(), "target.bin"), "proxy-target");
+		const workflowStore = ReverseWorkflowStore.forSession(tempDir.path());
+		const evidenceStore = new EvidenceStore({ repositoryRoot: tempDir.path() });
+		const proxyEvidence = await evidenceStore.addFact({
+			kind: "fact",
+			target: "target.bin",
+			sourceTool: "binary_diff",
+			locator: "offset:0x100",
+			content: "proxy observation",
+			subject: "proxy_auth",
+			assurance: "static_candidate",
+		});
+		const wf = await workflowStore.create({
+			id: "wf_proxy_test",
+			target: "target.bin",
+		});
+		wf.steps[0].evidence_ids = [proxyEvidence.id];
+		setWorkflowAcceptanceCriteria(wf, [
+			{
+				id: "c_proxy",
+				step_id: wf.steps[0].id,
+				title: "代理证据主体校验",
+				subject: "main_auth",
+				status: "pending",
+				satisfied_by_evidence_ids: [proxyEvidence.id],
+			},
+		]);
+		await workflowStore.save(wf);
+
+		emitToolResult("reverse_workflow", { workflow: { id: wf.id } });
+		emitTextOnlyStop("Analysis completed with proxy observations.");
+		await session.waitForIdle();
+
+		const receipt = deliveryReceiptEntry();
+		const details = receipt?.details as { workflows?: Array<{ items?: Array<{ status: string }> }> };
+		expect(details.workflows?.[0]?.items?.[0]?.status).toBe("proxy_verified");
+	});
+
+	it("handles unbound acceptance criteria when workflow has steps but no criteria", async () => {
+		session.setTodoPhases([]);
+		const workflowStore = ReverseWorkflowStore.forSession(tempDir.path());
+		const wf = await workflowStore.create({
+			id: "wf_unbound_test",
+			target: "target.bin",
+		});
+		await workflowStore.update(wf.id, record => {
+			setWorkflowAcceptanceCriteria(record, []);
+		});
+
+		emitToolResult("reverse_workflow", { workflow: { id: wf.id } });
+		emitTextOnlyStop("Unbound workflow done.");
+		await session.waitForIdle();
+
+		const receipt = deliveryReceiptEntry();
+		const details = receipt?.details as { workflows?: Array<{ workflowId: string; criteriaUnbound: boolean }> };
+		expect(details.workflows?.[0]?.workflowId).toBe(wf.id);
+		expect(details.workflows?.[0]?.criteriaUnbound).toBe(true);
+	});
+
+	it("extracts workflow ID from xd:// wrapped tool execution details", async () => {
+		session.setTodoPhases([]);
+		const workflowStore = ReverseWorkflowStore.forSession(tempDir.path());
+		const wf = await workflowStore.create({
+			id: "wf_xd_inner",
+			target: "target.bin",
+		});
+
+		emitToolResult("write", {
+			xdev: {
+				tool: "reverse_workflow",
+				inner: {
+					action: "status",
+					workflow: { id: wf.id },
+				},
+			},
+		});
+		emitTextOnlyStop("Finished write to xd://.");
+		await session.waitForIdle();
+
+		const receipt = deliveryReceiptEntry();
+		expect(receipt).toBeDefined();
+		expect(receipt?.content).toContain("wf_xd_inner");
+	});
+
+	it("does not pollute current cycle with generic read tool returning workflow_id or historical workflow lists", async () => {
+		session.setTodoPhases([]);
+		const workflowStore = ReverseWorkflowStore.forSession(tempDir.path());
+		await workflowStore.create({
+			id: "wf_historical_old",
+			target: "target.bin",
+		});
+
+		emitToolResult("read", { workflow_id: "wf_historical_old" });
+		emitToolResult("reverse_workflow", {
+			action: "status",
+			workflows: [{ id: "wf_historical_old" }],
+		});
+
+		emitTextOnlyStop("Done generic read and list.");
+		await session.waitForIdle();
+
+		expect(deliveryReceiptEntry()).toBeUndefined();
+	});
+
+	it("does not emit delivery receipt when plan mode is enabled", async () => {
+		session.setTodoPhases([]);
+		session.setPlanModeState({ enabled: true, planFilePath: "local://PLAN.md" });
+		emitTextOnlyStop("In plan mode.");
+		await session.waitForIdle();
+
+		const receipt = deliveryReceiptEntry();
+		expect(receipt).toBeUndefined();
 	});
 });
